@@ -87,7 +87,7 @@ function App() {
     });
   };
 
-  const clearSelection = () => setSelectedIds(() => new Set());
+  const clearSelection = () => setSelectedIds(() => new Set<number>());
 
   const handleBatchTag = async (event: Event) => {
     event.preventDefault();
@@ -190,7 +190,7 @@ function App() {
           </button>
         </form>
         <Show when={feedback()}>
-          {(message) => <p class="feedback">{message}</p>}
+          {(message) => <p class="feedback">{message()}</p>}
         </Show>
       </section>
 

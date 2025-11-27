@@ -12,11 +12,11 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-const (
+var (
 	// PhotoRoot is the directory that will be scanned for source media files.
-	PhotoRoot = "/Volumes/drive1/takeout/"
+	PhotoRoot = os.Getenv("PHOTO_ROOT")
 	// ThumbnailRoot is where generated thumbnails are stored on disk.
-	ThumbnailRoot = "/Volumes/drive1/thumbnails"
+	ThumbnailRoot = os.Getenv("THUMBNAIL_ROOT")
 	// ThumbnailURLPrefix is the public route prefix clients use to fetch thumbnails.
 	ThumbnailURLPrefix = "/media/thumbnails/"
 )

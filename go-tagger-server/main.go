@@ -12,13 +12,17 @@ import (
 	"go-tagger/services" // <-- Ensure this is imported
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 const clientDistPath = "../go-tagger-client/dist"
 
 func main() {
 	args := os.Args
-
+	err := godotenv.Load()
+	if err != nil {
+		log.Printf("Error loading .env file: %v", err)
+	}
 	db.Init()
 	services.InitExifTool()
 
@@ -70,5 +74,5 @@ func main() {
 	}
 
 	// 4. Run the Server
-	r.Run(":8080") // Application runs on http://localhost:8080
+	r.Run(":" + os.Getenv("SERVER_PORT")) // Application runs on http://localhost:5080
 }

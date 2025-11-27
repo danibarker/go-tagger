@@ -4,11 +4,13 @@ services:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: photo_db
+      # --- Replaced Hardcoded Values with Variables from .env ---
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5433:5432"
+      # Ensure this port matches your DB_PORT in the .env file
+      - "${DB_PORT}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
 volumes:

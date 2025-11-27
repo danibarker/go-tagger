@@ -1,8 +1,10 @@
 package db
 
 import (
+	"fmt"
 	"go-tagger/models"
 	"log"
+	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -12,8 +14,13 @@ var DB *gorm.DB
 
 func Init() {
 	// Connection string for the Docker PostgreSQL container
-	dsn := "host=localhost user=user password=password dbname=photo_db port=5433 sslmode=disable TimeZone=America/Denver"
-
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=America/Denver",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_PORT"),
+	)
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
