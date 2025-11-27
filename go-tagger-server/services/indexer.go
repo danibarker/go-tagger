@@ -317,6 +317,12 @@ func UpdateIndexFiles() {
 
 // IsIndexingRunning checks if the global index lock is currently held.
 func IsIndexingRunning() bool {
-	// TryLock returns false if the lock is already held (i.e., running)
-	return !indexingRunning.TryLock()
+	// TryLock attempts to acquire the lock. If successful, the lock was free.
+	if indexingRunning.TryLock() {
+		// Immediately release the lock we just acquired, because we only wanted to check the status.
+		indexingRunning.Unlock()
+		return false // The indexer is NOT running.
+	}
+	// If TryLock fails, the lock is already held by another function (IndexFiles).
+	return true // The indexer IS running.
 }
