@@ -238,10 +238,7 @@ func IndexFiles() {
 
 }
 func UpdateIndexFiles() {
-	if !indexingRunning.TryLock() {
-		log.Println("Index update already running. Skipping request.")
-		return
-	}
+	indexingRunning.Lock() // This blocks if another index is running.
 	defer indexingRunning.Unlock()
 
 	log.Println("Starting file system update check for deletes/moves...")
