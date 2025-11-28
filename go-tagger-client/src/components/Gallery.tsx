@@ -8,6 +8,7 @@ type GalleryProps = {
   onToggleSelection: (id: number) => void;
   isLoading: boolean;
   currentPage: number;
+  onDeletePhoto?: (id: number) => void;
 };
 
 export function Gallery(props: GalleryProps) {
@@ -29,6 +30,7 @@ export function Gallery(props: GalleryProps) {
                 isSelected={() => props.selectedIds().has(photo.ID)}
                 onToggleSelection={props.onToggleSelection}
                 currentPage={props.currentPage}
+                onDelete={props.onDeletePhoto}
               />
             )}
           </For>

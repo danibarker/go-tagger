@@ -31,7 +31,7 @@ func HandleGetPhotos(c *gin.Context) {
 
 	// 2. Count Total Rows (for frontend pagination control)
 	query := db.DB.Model(&models.Photo{})
-
+	query = query.Where("marked_for_deletion = ?", false)
 	// Optional filters
 	if input.Name != "" {
 		query = query.Where("file_path LIKE ?", "%"+input.Name+"%")
@@ -72,6 +72,10 @@ func HandleGetPhotos(c *gin.Context) {
 				Where("tags.name IN ?", tags).
 				Distinct()
 		}
+	} else if input.Untagged {
+		// Photos with no tags
+		query = query.Joins("LEFT JOIN photo_tags ON photos.id = photo_tags.photo_id").
+			Where("photo_tags.photo_id IS NULL")
 	}
 	if input.People != "" {
 		people := strings.Split(input.People, ",")
@@ -88,6 +92,10 @@ func HandleGetPhotos(c *gin.Context) {
 				Where("people.name IN ?", people).
 				Distinct()
 		}
+	} else if input.Untagged {
+		// Photos with no people tags
+		query = query.Joins("LEFT JOIN photo_people ON photos.id = photo_people.photo_id").
+			Where("photo_people.photo_id IS NULL")
 	}
 	query.Count(&totalRows)
 
@@ -121,15 +129,23 @@ func HandleGetPhotos(c *gin.Context) {
 
 }
 
-func HandleGetPhotoByID(c *gin.Context) {
+func HandleDeletePhotos(c *gin.Context) {
+	var input struct {
+		PhotoIDs []uint `json:"photo_ids" binding:"required"`
+	}
 
-}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: photo_ids are required."})
+		return
+	}
 
-func HandleAddTagsToPhoto(c *gin.Context) {
-}
+	// Mark photos for deletion in the database
+	if err := db.DB.Model(&models.Photo{}).Where("id IN ?", input.PhotoIDs).Update("marked_for_deletion", true).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while marking photos for deletion."})
+		return
+	}
 
-func HandleUpdateTagsOfPhoto(c *gin.Context) {
-
+	c.JSON(http.StatusOK, gin.H{"message": "Photos marked for deletion successfully.", "photos_marked": len(input.PhotoIDs)})
 }
 
 // HandleServeOriginalPhoto streams the original media file by photo hash.

@@ -8,9 +8,14 @@ type PhotoCardProps = {
   isSelected: () => boolean;
   onToggleSelection: (id: number) => void;
   currentPage: number;
+  onDelete?: (id: number) => void;
 };
 
 export function PhotoCard(props: PhotoCardProps) {
+  const handleDelete = (event: MouseEvent) => {
+    event.stopPropagation();
+    if (props.onDelete) props.onDelete(props.photo.ID);
+  };
   const takenAt = () =>
     props.photo.taken_at
       ? new Date(props.photo.taken_at).toLocaleString()
@@ -32,6 +37,7 @@ export function PhotoCard(props: PhotoCardProps) {
       type="button"
       class={`gallery__item ${props.isSelected() ? "is-selected" : ""}`}
       onClick={handleClick}
+      style={{ position: "relative" }}
     >
       <Show
         when={props.photo.thumbnail_path}
@@ -41,6 +47,28 @@ export function PhotoCard(props: PhotoCardProps) {
           <img src={`${API_BASE}${thumb()}`} alt="thumbnail" loading="lazy" />
         )}
       </Show>
+      <button
+        type="button"
+        aria-label="Delete photo"
+        onClick={handleDelete}
+        style={{
+          position: "absolute",
+          top: "4px",
+          right: "4px",
+          width: "20px",
+          height: "20px",
+          border: "none",
+          background: "#fff",
+          color: "#c00",
+          "font-weight": 700,
+          "border-radius": "50%",
+          cursor: "pointer",
+          "font-size": "1em",
+          "z-index": 2,
+        }}
+      >
+        ×
+      </button>
       <div class="gallery__meta">
         <span>{takenAt()}</span>
         <span>{props.photo.file_type.toUpperCase()}</span>

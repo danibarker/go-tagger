@@ -23,4 +23,5 @@ type PaginationInput struct {
 	AfterTime   string `form:"after_time"`
 	People      string `form:"people"`
 	PeopleOrAnd string `form:"people_or_and,default=and"` // and or or
+	Untagged    bool   `form:"untagged"`
 }

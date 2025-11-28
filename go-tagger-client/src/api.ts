@@ -96,3 +96,60 @@ export const batchTagPeople = async (
     throw new Error(body.error ?? "Failed to batch tag people");
   }
 };
+
+export const getTagSuggestions = async (query: string): Promise<string[]> => {
+  const params = new URLSearchParams({ q: query });
+  const res = await fetch(
+    `${API_BASE}/api/tags/autocomplete?${params.toString()}`
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to fetch tag suggestions");
+  }
+  return (await res.json()) as string[];
+};
+
+export const getTopTags = async (): Promise<string[]> => {
+  const res = await fetch(`${API_BASE}/api/tags`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to fetch top tags");
+  }
+  return (await res.json()) as string[];
+};
+
+export const getPeopleSuggestions = async (
+  query: string
+): Promise<string[]> => {
+  const params = new URLSearchParams({ q: query });
+  const res = await fetch(
+    `${API_BASE}/api/people/autocomplete?${params.toString()}`
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to fetch people suggestions");
+  }
+  return (await res.json()) as string[];
+};
+
+export const getTopPeople = async (): Promise<string[]> => {
+  const res = await fetch(`${API_BASE}/api/people`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to fetch top people");
+  }
+  return (await res.json()) as string[];
+};
+
+export const deletePhotos = async (photoIds: number[]): Promise<void> => {
+  const res = await fetch(`${API_BASE}/api/photos`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ photo_ids: photoIds }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to delete photos");
+  }
+};

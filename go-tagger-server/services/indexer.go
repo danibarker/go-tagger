@@ -235,7 +235,8 @@ func IndexFiles() {
 			thumbURL = ThumbnailURLPrefix + thumbFileName
 
 			if _, err := os.Stat(thumbDiskPath); os.IsNotExist(err) {
-				if fileType == "image" {
+				switch fileType {
+				case "image":
 					// Generate image thumbnail
 					img, err := imaging.Open(path)
 					if err != nil {
@@ -248,7 +249,7 @@ func IndexFiles() {
 							thumbURL = ""
 						}
 					}
-				} else if fileType == "video" {
+				case "video":
 					// Generate video thumbnail using ffmpeg
 					if err := generateVideoThumbnail(path, thumbDiskPath); err != nil {
 						log.Printf("Failed to generate video thumbnail for %s: %v", path, err)
