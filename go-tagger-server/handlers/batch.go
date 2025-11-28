@@ -65,6 +65,46 @@ func HandleBatchTagging(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully added tags to all photos.", "photos_updated": updated})
 }
 
+// HandleBatchPeopleTagging processes the bulk people tagging request
+func HandleBatchPeopleTagging(c *gin.Context) {
+	var input struct {
+		PhotoIDs  []uint   `json:"photo_ids" binding:"required"`
+		NewPeople []string `json:"new_people" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: photo_ids and new_people are required."})
+		return
+	}
+
+	var photos []models.Photo
+	if err := db.DB.Where("id IN ?", input.PhotoIDs).Find(&photos).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching photos."})
+		return
+	}
+
+	var people []models.Person
+	for _, personName := range input.NewPeople {
+		var person models.Person
+		if err := db.DB.FirstOrCreate(&person, models.Person{Name: personName}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while creating/fetching people."})
+			return
+		}
+		people = append(people, person)
+	}
+
+	updated := 0
+	for _, photo := range photos {
+		if err := db.DB.Model(&photo).Association("People").Append(&people); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while updating photo people."})
+			return
+		}
+		updated++
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully added people to all photos.", "photos_updated": updated})
+}
+
 func HandleIndexing(c *gin.Context) {
 	// Check immediately if an index is already running
 	if services.IsIndexingRunning() {

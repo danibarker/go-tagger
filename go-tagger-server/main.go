@@ -17,12 +17,19 @@ import (
 
 const clientDistPath = "../go-tagger-client/dist"
 
-func main() {
-	args := os.Args
+func init() {
+	// Load .env file before the main function or any global variables are initialized.
 	err := godotenv.Load()
 	if err != nil {
-		log.Printf("Error loading .env file: %v", err)
+		log.Println("Warning: Could not load .env file. Using system environment variables.")
 	}
+}
+func main() {
+	args := os.Args
+
+	// check .env for THUMBNAIL_ROOT and PHOTO_ROOT
+	log.Printf("PHOTO_ROOT: %s", os.Getenv("PHOTO_ROOT"))
+	log.Printf("THUMBNAIL_ROOT: %s", os.Getenv("THUMBNAIL_ROOT"))
 	db.Init()
 	services.InitExifTool()
 
@@ -32,6 +39,12 @@ func main() {
 	}
 
 	r := gin.Default()
+
+	// Register media routes BEFORE NoRoute handler (both GET and HEAD)
+	r.GET("/media/photos/:hash", handlers.HandleServeOriginalPhoto)
+	r.HEAD("/media/photos/:hash", handlers.HandleServeOriginalPhoto)
+	r.GET("/media/thumbnails/:hash", handlers.HandleServeThumbnail)
+	r.HEAD("/media/thumbnails/:hash", handlers.HandleServeThumbnail)
 
 	if info, err := os.Stat(clientDistPath); err == nil && info.IsDir() {
 		assetsDir := filepath.Join(clientDistPath, "assets")
@@ -59,12 +72,10 @@ func main() {
 		log.Printf("client build directory not available, skipped static hosting: %v", err)
 	}
 
-	r.GET("/media/photos/:hash", handlers.HandleServeOriginalPhoto)
-	r.GET("/media/thumbnails/:hash", handlers.HandleServeThumbnail)
-
 	api := r.Group("/api")
 	{
 		api.POST("/photos/batch/tags", handlers.HandleBatchTagging)
+		api.POST("/photos/batch/people", handlers.HandleBatchPeopleTagging)
 		api.GET("/photos", handlers.HandleGetPhotos)
 		api.GET("/photos/:id", handlers.HandleGetPhotoByID)
 		api.POST("/photos/:id/tags", handlers.HandleAddTagsToPhoto)

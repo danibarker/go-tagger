@@ -13,7 +13,10 @@ var Et *exiftool.Exiftool
 // InitExifTool creates a single, reusable instance of Exiftool with stay_open optimization.
 func InitExifTool() {
 	var err error
-	Et, err = exiftool.NewExiftool()
+	// Allocate a 100MB buffer for the ExifTool process (100 * 1024 * 1024 bytes)
+	const bufferSize = 100 * 1024 * 1024
+	buffer := make([]byte, bufferSize)
+	Et, err = exiftool.NewExiftool(exiftool.Buffer(buffer, bufferSize))
 	if err != nil {
 		log.Fatalf("Error initializing Exiftool for bulk operations: %v", err)
 	}

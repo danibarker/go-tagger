@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ExifTool Custom Tag Example</title>
+    <style>
+        body {
+            font-family: monospace;
+            background-color: white;
+            padding: 20px;
+        }
+
+        .fixed {
+            color: black;
+        }
+
+        .editable {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <pre>
+<span class="fixed">%Image::ExifTool::UserDefined = (</span>
+<span class="fixed">    'Image::ExifTool::XMP::Main' =&gt; {</span>
+<span class="editable">MyNS</span> <span class="fixed">=&gt; {</span>
+<span class="fixed">        SubDirectory =&gt; { TagTable =&gt; '</span><span class="editable">MyNSTags</span><span class="fixed">' }</span>
+<span class="fixed">    },</span>
+<span class="fixed">},</span>
+<span class="fixed">);</span>
+<span class="fixed">%Image::ExifTool::XMP::</span><span class="editable">MyNSTags</span> <span class="fixed">= (</span>
+<span class="fixed">    GROUPS =&gt; { 0 =&gt; 'XMP', 1 =&gt; 'XMP-</span><span class="editable">MyNS</span><span class="fixed">', 2 =&gt; 'Image' },</span>
+<span class="editable">MyCustomTag</span> <span class="fixed">=&gt; { Writable =&gt; '</span><span class="editable">string</span><span class="fixed">' },</span>
+<span class="fixed">);</span>
+<span class="fixed">1;</span>
+</pre>
+    <p>✅ <strong>Legend:</strong></p>
+    <ul>
+        <li><span class="fixed">Black text</span> = cannot change</li>
+        <li><span class="editable">Green text</span> = editable, can replace with anything</li>
+    </ul>
+
+</body>
+
+</html>

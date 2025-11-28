@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -33,6 +34,9 @@ func HandleGetPhotos(c *gin.Context) {
 
 	// Optional filters
 	if input.Name != "" {
+		query = query.Where("file_path LIKE ?", "%"+input.Name+"%")
+	}
+	if input.FileType != "" && input.FileType != "any" {
 		query = query.Where("file_type = ?", input.FileType)
 	}
 	// before/after for date and time
@@ -56,38 +60,51 @@ func HandleGetPhotos(c *gin.Context) {
 	if input.Tags != "" {
 		tags := strings.Split(input.Tags, ",")
 		if input.TagsOrAnd == "and" {
-			for _, tag := range tags {
-				query = query.Joins("JOIN photo_tags pt_"+tag+" ON photos.id = pt_"+tag+".photo_id").
-					Joins("JOIN tags t_"+tag+" ON pt_"+tag+".tag_id = t_"+tag+".id AND t_"+tag+".name = ?", tag)
+			for i, tag := range tags {
+				alias := fmt.Sprintf("pt_%d", i)
+				tagAlias := fmt.Sprintf("t_%d", i)
+				query = query.Joins(fmt.Sprintf("JOIN photo_tags %s ON photos.id = %s.photo_id", alias, alias)).
+					Joins(fmt.Sprintf("JOIN tags %s ON %s.tag_id = %s.id AND %s.name = ?", tagAlias, alias, tagAlias, tagAlias), tag)
 			}
 		} else {
 			query = query.Joins("JOIN photo_tags ON photos.id = photo_tags.photo_id").
 				Joins("JOIN tags ON photo_tags.tag_id = tags.id").
-				Where("tags.name IN ?", tags)
+				Where("tags.name IN ?", tags).
+				Distinct()
 		}
 	}
 	if input.People != "" {
 		people := strings.Split(input.People, ",")
 		if input.PeopleOrAnd == "and" {
-			for _, person := range people {
-				query = query.Joins("JOIN photo_people pp_"+person+" ON photos.id = pp_"+person+".photo_id").
-					Joins("JOIN people p_"+person+" ON pp_"+person+".person_id = p_"+person+".id AND p_"+person+".name = ?", person)
+			for i, person := range people {
+				alias := fmt.Sprintf("pp_%d", i)
+				personAlias := fmt.Sprintf("p_%d", i)
+				query = query.Joins(fmt.Sprintf("JOIN photo_people %s ON photos.id = %s.photo_id", alias, alias)).
+					Joins(fmt.Sprintf("JOIN people %s ON %s.person_id = %s.id AND %s.name = ?", personAlias, alias, personAlias, personAlias), person)
 			}
 		} else {
 			query = query.Joins("JOIN photo_people ON photos.id = photo_people.photo_id").
 				Joins("JOIN people ON photo_people.person_id = people.id").
-				Where("people.name IN ?", people)
+				Where("people.name IN ?", people).
+				Distinct()
 		}
 	}
 	query.Count(&totalRows)
 
 	// 3. Fetch Paginated Data
 	// Select only the fields needed for the gallery view (faster query)
-	result := query.Select("id", "thumbnail_path", "file_hash", "width", "height", "file_type", "taken_at").
-		Order("photos.id asc"). // Order by ID to ensure consistent paging
-		Limit(input.Limit).
+	result := query.Select("photos.id", "photos.file_path", "photos.thumbnail_path", "photos.file_hash", "photos.width", "photos.height", "photos.file_type", "photos.taken_at").
+		Preload("Tags").
+		Preload("People").
+		Order("photos.id asc").
 		Offset(offset).
+		Limit(input.Limit).
 		Find(&photos)
+
+	// Extract just the filename from the full path
+	for i := range photos {
+		photos[i].FilePath = filepath.Base(photos[i].FilePath)
+	}
 
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error fetching photos"})
@@ -127,8 +144,63 @@ func HandleServeOriginalPhoto(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "photo not found"})
 		return
 	}
+
+	// Set appropriate Content-Type based on file extension
+	ext := strings.ToLower(filepath.Ext(photo.FilePath))
+	var contentType string
+	switch ext {
+	case ".mp4":
+		contentType = "video/mp4"
+	case ".mov":
+		contentType = "video/quicktime"
+	case ".avi":
+		contentType = "video/x-msvideo"
+	case ".webm":
+		contentType = "video/webm"
+	case ".m4v":
+		contentType = "video/x-m4v"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".png":
+		contentType = "image/png"
+	case ".gif":
+		contentType = "image/gif"
+	case ".webp":
+		contentType = "image/webp"
+	case ".bmp":
+		contentType = "image/bmp"
+	case ".tiff", ".tif":
+		contentType = "image/tiff"
+	default:
+		contentType = "application/octet-stream"
+	}
+
+	// Set cache and content-type headers
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.File(photo.FilePath)
+	c.Header("Content-Type", contentType)
+
+	// If this is a HEAD request, just return headers
+	if c.Request.Method == "HEAD" {
+		c.Status(http.StatusOK)
+		return
+	}
+
+	// Open the file
+	file, err := os.Open(photo.FilePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})
+		return
+	}
+	defer file.Close()
+
+	// Get file info
+	fileInfo, err := file.Stat()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to stat file"})
+		return
+	}
+
+	c.DataFromReader(http.StatusOK, fileInfo.Size(), contentType, file, nil)
 }
 
 // HandleServeThumbnail streams the generated thumbnail file for a photo hash.
@@ -138,9 +210,18 @@ func HandleServeThumbnail(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "hash parameter is required"})
 		return
 	}
+	// Strip .jpg extension if present (for backward compatibility)
+	hash = strings.TrimSuffix(hash, ".jpg")
+
 	thumbPath := filepath.Join(services.ThumbnailRoot, hash+".jpg")
+
+	// Set debug headers early
+	c.Header("X-Debug-Thumbnail-Path", thumbPath)
+	c.Header("X-Debug-Thumbnail-Root", services.ThumbnailRoot)
+	c.Header("X-Debug-Hash", hash)
+
 	if _, err := os.Stat(thumbPath); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "thumbnail not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "thumbnail not found", "path": thumbPath, "err": err.Error()})
 		return
 	}
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")

@@ -1,15 +1,22 @@
 package services
 
 import (
+	"fmt"
 	"go-tagger/db"
 	"go-tagger/models"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/disintegration/imaging"
+	"github.com/joho/godotenv"
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/tiff"
+	_ "golang.org/x/image/webp" // Register WebP format
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -63,6 +70,39 @@ var imageExtensions = map[string]bool{
 	".png":  true,
 	".heic": true,
 	".nef":  true,
+	".webp": true,
+}
+
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: Could not load .env file. Using system environment variables.")
+	}
+	PhotoRoot = os.Getenv("PHOTO_ROOT")
+	ThumbnailRoot = os.Getenv("THUMBNAIL_ROOT")
+}
+
+// generateVideoThumbnail uses ffmpeg to extract a thumbnail from a video file
+func generateVideoThumbnail(videoPath, thumbnailPath string) error {
+	// Use ffmpeg to extract a frame at 1 second into the video
+	// -i: input file
+	// -ss: seek to position (1 second)
+	// -vframes 1: extract only 1 frame
+	// -vf scale=300:-1: resize to width 300, maintain aspect ratio
+	cmd := exec.Command("ffmpeg",
+		"-i", videoPath,
+		"-ss", "00:00:01",
+		"-vframes", "1",
+		"-vf", "scale=300:-1",
+		"-y", // Overwrite output file if exists
+		thumbnailPath,
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ffmpeg error: %v, output: %s", err, string(output))
+	}
+	return nil
 }
 
 // IndexFiles scans the PhotoRoot and populates the database.
@@ -141,12 +181,19 @@ func IndexFiles() {
 	// Array to hold new photo records before insertion
 	var newPhotos []models.Photo
 
-	// Use a map to track existing FileHashes to prevent duplicate inserts during the walk.
-	// This is faster than querying the DB thousands of times.
-	existingHashes := make(map[string]bool)
-	db.DB.Model(&models.Photo{}).Select("file_hash").Find(&existingHashes)
+	// 1. Fetch all existing hashes into a simple string slice
+	var existingHashesSlice []string
+	if err := db.DB.Model(&models.Photo{}).Select("file_hash").Find(&existingHashesSlice).Error; err != nil {
+		log.Fatalf("Failed to fetch existing hashes from DB: %v", err)
+	}
 
+	// 2. Convert the slice to a map for O(1) fast lookup during file walk
+	existingHashes := make(map[string]bool)
+	for _, hash := range existingHashesSlice {
+		existingHashes[hash] = true
+	}
 	// Ensure thumbnail directory exists
+	fmt.Printf("Thumbnail root: %s\n", ThumbnailRoot)
 	if _, err := os.Stat(ThumbnailRoot); os.IsNotExist(err) {
 		if err := os.MkdirAll(ThumbnailRoot, 0755); err != nil {
 			log.Fatalf("Failed to create thumbnail directory: %v", err)
@@ -181,13 +228,15 @@ func IndexFiles() {
 				fileType = "video"
 			}
 
-			// Generate thumbnail for images
+			// Generate thumbnail for images and videos
 			var thumbURL string
-			if fileType == "image" {
-				thumbFileName := hash + ".jpg"
-				thumbDiskPath := filepath.Join(ThumbnailRoot, thumbFileName)
-				thumbURL = ThumbnailURLPrefix + thumbFileName
-				if _, err := os.Stat(thumbDiskPath); os.IsNotExist(err) {
+			thumbFileName := hash + ".jpg"
+			thumbDiskPath := filepath.Join(ThumbnailRoot, thumbFileName)
+			thumbURL = ThumbnailURLPrefix + thumbFileName
+
+			if _, err := os.Stat(thumbDiskPath); os.IsNotExist(err) {
+				if fileType == "image" {
+					// Generate image thumbnail
 					img, err := imaging.Open(path)
 					if err != nil {
 						log.Printf("Failed to open image for thumbnail %s: %v", path, err)
@@ -198,6 +247,12 @@ func IndexFiles() {
 							log.Printf("Failed to save thumbnail for %s: %v", path, err)
 							thumbURL = ""
 						}
+					}
+				} else if fileType == "video" {
+					// Generate video thumbnail using ffmpeg
+					if err := generateVideoThumbnail(path, thumbDiskPath); err != nil {
+						log.Printf("Failed to generate video thumbnail for %s: %v", path, err)
+						thumbURL = ""
 					}
 				}
 			}
@@ -212,6 +267,22 @@ func IndexFiles() {
 				FileType:      fileType,
 			}
 			newPhotos = append(newPhotos, photo)
+			if len(newPhotos) >= 1000 {
+				result := db.DB.Clauses(clause.OnConflict{
+					// Check for a conflict on the 'file_hash' column
+					Columns: []clause.Column{{Name: "file_hash"}},
+					// If a conflict occurs, do nothing and continue to the next record
+					DoNothing: true,
+				}).CreateInBatches(newPhotos, 1000)
+
+				if result.Error != nil {
+					log.Fatalf("Error during chunk batch insert: %v", result.Error)
+				}
+				log.Printf("Inserted %d photos in chunk.", result.RowsAffected)
+
+				// Reset the batch array to start collecting the next chunk
+				newPhotos = nil
+			}
 		}
 		return nil
 	})
@@ -223,8 +294,12 @@ func IndexFiles() {
 	// --- 5. BATCH INSERTION (The Speed Fix!) ---
 	if len(newPhotos) > 0 {
 		// Insert up to 1000 records at a time
-		result := db.DB.CreateInBatches(newPhotos, 1000)
-
+		result := db.DB.Clauses(clause.OnConflict{
+			// Check for a conflict on the 'file_hash' column
+			Columns: []clause.Column{{Name: "file_hash"}},
+			// If a conflict occurs, do nothing and continue to the next record
+			DoNothing: true,
+		}).CreateInBatches(newPhotos, len(newPhotos)) // Insert the remainder
 		if result.Error != nil {
 			log.Fatalf("Error during batch insert: %v", result.Error)
 		}
