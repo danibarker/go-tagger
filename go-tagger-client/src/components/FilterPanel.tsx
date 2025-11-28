@@ -1,10 +1,23 @@
-import { createSignal, createResource, createEffect } from "solid-js";
+import { createSignal, createEffect } from "solid-js";
+import type { Setter, Accessor } from "solid-js";
 import { fetchPhotos } from "../api";
 import { getTopTags, getTopPeople } from "../api";
 import { getTagSuggestions, getPeopleSuggestions } from "../api";
 
+interface FilterPanelProps {
+  showFilterPanel: Accessor<boolean>;
+  toggleFiltersPanel: () => void;
+  limit: Accessor<number>;
+  setLimit: Setter<number>;
+  page: Accessor<number>;
+  setPage: Setter<number>;
+  setPhotos: Setter<any[]>;
+  setPhotosLoading: Setter<boolean>;
+  setTotalPages: Setter<number>;
+  refreshPhotos: Accessor<boolean>;
+}
+
 export function FilterPanel({
-  showFilterPanel,
   toggleFiltersPanel,
   limit,
   setLimit,
@@ -14,7 +27,7 @@ export function FilterPanel({
   setPhotosLoading,
   setTotalPages,
   refreshPhotos,
-}) {
+}: FilterPanelProps) {
   // Autocomplete state
   const [tagSuggestions, setTagSuggestions] = createSignal<string[]>([]);
   const [showTagDropdown, setShowTagDropdown] = createSignal(false);
@@ -75,7 +88,6 @@ export function FilterPanel({
     tagsLogic,
     searchPeople,
     peopleLogic,
-    searchName,
     fileType,
     beforeDate,
     beforeTime,
@@ -109,7 +121,7 @@ export function FilterPanel({
         <h3>Search Filters</h3>
         <div class="panel__header-actions">
           <button id="filters-panel-close-btn" aria-label="Close Filters Panel">
-            {showFilterPanel() ? "˄" : "˅"}
+            ✕
           </button>
         </div>
       </div>
@@ -160,9 +172,9 @@ export function FilterPanel({
                   position: "absolute",
                   background: "white",
                   border: "1px solid #ccc",
-                  zIndex: 10,
-                  marginTop: "2.2rem",
-                  minWidth: "180px",
+                  "z-index": 10,
+                  "margin-top": "2.2rem",
+                  "min-width": "180px",
                 }}
               >
                 {tagSuggestions().map((suggestion) => (
@@ -205,11 +217,11 @@ export function FilterPanel({
                 class="pill"
                 style={{
                   padding: "0.25rem 0.75rem",
-                  borderRadius: "999px",
+                  "border-radius": "999px",
                   border: "1px solid #ccc",
                   background: "#f5f5f5",
                   cursor: "pointer",
-                  fontSize: "0.9em",
+                  "font-size": "0.9em",
                 }}
                 onClick={() => {
                   const current = searchTags();
@@ -274,9 +286,9 @@ export function FilterPanel({
                   position: "absolute",
                   background: "white",
                   border: "1px solid #ccc",
-                  zIndex: 10,
-                  marginTop: "2.2rem",
-                  minWidth: "180px",
+                  "z-index": 10,
+                  "margin-top": "2.2rem",
+                  "min-width": "180px",
                 }}
               >
                 {peopleSuggestions().map((suggestion) => (
@@ -319,11 +331,11 @@ export function FilterPanel({
                 class="pill"
                 style={{
                   padding: "0.25rem 0.75rem",
-                  borderRadius: "999px",
+                  "border-radius": "999px",
                   border: "1px solid #ccc",
                   background: "#f5f5f5",
                   cursor: "pointer",
-                  fontSize: "0.9em",
+                  "font-size": "0.9em",
                 }}
                 onClick={() => {
                   const current = searchPeople();

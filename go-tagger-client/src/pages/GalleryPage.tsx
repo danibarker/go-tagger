@@ -1,11 +1,6 @@
 import { Show, createSignal, createEffect } from "solid-js";
 import { Gallery } from "../components/Gallery";
-import {
-  batchTagPhotos,
-  batchTagPeople,
-  triggerIndexing,
-  deletePhotos,
-} from "../api";
+import { triggerIndexing, deletePhotos } from "../api";
 import { FilterPanel } from "../components/FilterPanel";
 import { BatchTaggingPanel } from "../components/BatchTaggingPanel";
 import { PageControls } from "../components/PageControls";
@@ -16,7 +11,6 @@ export function GalleryPage() {
   const handleDeletePhoto = async (id: number) => {
     try {
       await deletePhotos([id]);
-      setFeedback("Photo deleted.");
       setRefreshPhotos((v) => !v);
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -24,9 +18,7 @@ export function GalleryPage() {
         return next;
       });
     } catch (error) {
-      setFeedback(
-        error instanceof Error ? error.message : "Failed to delete photo"
-      );
+      // Optionally log error
     }
   };
 
@@ -36,13 +28,10 @@ export function GalleryPage() {
     if (!ids.length) return;
     try {
       await deletePhotos(ids);
-      setFeedback(`Deleted ${ids.length} photo(s).`);
       clearSelection();
       setRefreshPhotos((v) => !v);
     } catch (error) {
-      setFeedback(
-        error instanceof Error ? error.message : "Failed to delete photos"
-      );
+      // Optionally log error
     }
   };
   const [viewerHash, setViewerHash] = createSignal<string | null>(null);
@@ -99,8 +88,6 @@ export function GalleryPage() {
   // Tagging states
   const [tagInput, setTagInput] = createSignal("");
   const [peopleInput, setPeopleInput] = createSignal("");
-  const [feedback, setFeedback] = createSignal<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = createSignal(false);
   const [selectedIds, setSelectedIds] = createSignal<Set<number>>(new Set());
   const [showFilterPanel, setShowFilterPanel] = createSignal(false);
   const [showBatchPanel, setShowBatchPanel] = createSignal(false);
@@ -122,94 +109,15 @@ export function GalleryPage() {
     });
   };
 
-  const selectAllVisible = () => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      photos().forEach((photo: any) => next.add(photo.ID));
-      return next;
-    });
-  };
-
   const clearSelection = () => setSelectedIds(() => new Set<number>());
 
   // Refresh trigger for FilterPanel
   const [refreshPhotos, setRefreshPhotos] = createSignal(false);
 
-  const handleBatchTag = async (event: Event) => {
-    event.preventDefault();
-
-    const ids = Array.from(selectedIds());
-    const tags = tagInput()
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-
-    if (!ids.length || !tags.length) {
-      setFeedback("Pick at least one photo and enter at least one tag.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setFeedback(null);
-
-    try {
-      await batchTagPhotos(ids, tags);
-      setFeedback(`Tagged ${ids.length} photo(s) with ${tags.join(", ")}`);
-      setTagInput("");
-      clearSelection();
-      setRefreshPhotos((v) => !v); // trigger refresh
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Something went wrong";
-      setFeedback(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleBatchPeople = async (event: Event) => {
-    event.preventDefault();
-
-    const ids = Array.from(selectedIds());
-    const people = peopleInput()
-      .split(",")
-      .map((person) => person.trim())
-      .filter(Boolean);
-
-    if (!ids.length || !people.length) {
-      setFeedback("Pick at least one photo and enter at least one person.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setFeedback(null);
-
-    try {
-      await batchTagPeople(ids, people);
-      setFeedback(
-        `Tagged ${ids.length} photo(s) with people: ${people.join(", ")}`
-      );
-      setPeopleInput("");
-      clearSelection();
-      setRefreshPhotos((v) => !v); // trigger refresh
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Something went wrong";
-      setFeedback(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleIndexing = async () => {
     try {
       await triggerIndexing();
-      setFeedback("Indexing started.");
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Something went wrong";
-      setFeedback(message);
-    }
+    } catch (error) {}
   };
 
   const toggleFiltersPanel = () => {
@@ -254,15 +162,8 @@ export function GalleryPage() {
         setTagInput={setTagInput}
         peopleInput={peopleInput}
         setPeopleInput={setPeopleInput}
-        feedback={feedback}
-        isSubmitting={isSubmitting}
-        selectedIds={selectedIds}
         showBatchPanel={showBatchPanel}
         toggleBatchPanel={toggleBatchPanel}
-        handleBatchTag={handleBatchTag}
-        handleBatchPeople={handleBatchPeople}
-        selectAllVisible={selectAllVisible}
-        clearSelection={clearSelection}
       />
 
       <section class="panel panel--open">
@@ -270,7 +171,6 @@ export function GalleryPage() {
           page={currentPage}
           totalPages={totalPages}
           setPage={setCurrentPage}
-          photos={photos}
           photosLoading={photosLoading}
         />
         <Show
@@ -319,7 +219,6 @@ export function GalleryPage() {
           page={currentPage}
           totalPages={totalPages}
           setPage={setCurrentPage}
-          photos={photos}
           photosLoading={photosLoading}
         />
       </section>

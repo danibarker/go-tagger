@@ -34,6 +34,8 @@ type Photo struct {
 	// Metadata from the file itself (optional but useful)
 	TakenAt time.Time `json:"taken_at"`
 
+	Hidden bool `gorm:"default:false" json:"hidden"`
+
 	// Soft delete flag
 	MarkedForDeletion bool `gorm:"default:false" json:"marked_for_deletion"`
 }

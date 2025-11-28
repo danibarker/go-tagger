@@ -1,17 +1,23 @@
+interface PageControlsProps {
+  page: () => number;
+  totalPages: () => number;
+  photosLoading: () => boolean;
+  setPage: (fn: (prev: number) => number) => void;
+}
+
 export function PageControls({
   page,
   totalPages,
-  photos,
   photosLoading,
   setPage,
-}) {
+}: PageControlsProps) {
   return (
     <div class="page-controls">
       <button
         type="button"
         class="ghost"
         disabled={page() === 1 || photosLoading()}
-        onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+        onClick={() => setPage((prev: number) => Math.max(1, prev - 1))}
       >
          Prev
       </button>
@@ -22,7 +28,7 @@ export function PageControls({
         type="button"
         class="ghost"
         disabled={page() >= totalPages() || photosLoading()}
-        onClick={() => setPage((prev) => prev + 1)}
+        onClick={() => setPage((prev: number) => prev + 1)}
       >
         Next 
       </button>

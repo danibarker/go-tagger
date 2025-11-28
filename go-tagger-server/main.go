@@ -23,6 +23,7 @@ func init() {
 	if err != nil {
 		log.Println("Warning: Could not load .env file. Using system environment variables.")
 	}
+
 }
 func main() {
 	args := os.Args

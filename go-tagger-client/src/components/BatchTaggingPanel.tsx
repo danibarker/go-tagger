@@ -1,9 +1,18 @@
-import { Show } from "solid-js";
 import { createSignal, createEffect } from "solid-js";
 import { getTopTags, getTopPeople } from "../api";
 import { getTagSuggestions, getPeopleSuggestions } from "../api";
 
-export function BatchTaggingPanel(props) {
+interface BatchTaggingPanelProps {
+  toggleBatchPanel: () => void;
+  showBatchPanel: () => boolean;
+  tagInput: () => string;
+  setTagInput: (val: string) => void;
+  peopleInput: () => string;
+  setPeopleInput: (val: string) => void;
+  children?: any;
+}
+
+export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
   // Autocomplete state
   const [tagSuggestions, setTagSuggestions] = createSignal<string[]>([]);
   const [showTagDropdown, setShowTagDropdown] = createSignal(false);
@@ -80,18 +89,18 @@ export function BatchTaggingPanel(props) {
                 position: "absolute",
                 background: "white",
                 border: "1px solid #ccc",
-                zIndex: 10,
-                marginTop: "2.2rem",
-                minWidth: "180px",
+                "z-index": 10,
+                "margin-top": "2.2rem",
+                "min-width": "180px",
               }}
             >
-              {tagSuggestions().map((suggestion) => (
+              {tagSuggestions().map((suggestion: string) => (
                 <div
                   style={{ padding: "0.25rem 0.75rem", cursor: "pointer" }}
                   onMouseDown={() => {
                     const current = props.tagInput();
                     const tagsArr = current
-                      ? current.split(",").map((t) => t.trim())
+                      ? current.split(",").map((t: string) => t.trim())
                       : [];
                     tagsArr[tagsArr.length - 1] = suggestion;
                     props.setTagInput(tagsArr.filter(Boolean).join(", "));
@@ -107,26 +116,26 @@ export function BatchTaggingPanel(props) {
             style={{
               display: "flex",
               gap: "0.5rem",
-              flexWrap: "wrap",
+              "flex-wrap": "wrap",
               margin: "0.5rem 0",
             }}
           >
-            {topTags().map((tag) => (
+            {topTags().map((tag: string) => (
               <button
                 type="button"
                 class="pill"
                 style={{
                   padding: "0.25rem 0.75rem",
-                  borderRadius: "999px",
+                  "border-radius": "999px",
                   border: "1px solid #ccc",
                   background: "#f5f5f5",
                   cursor: "pointer",
-                  fontSize: "0.9em",
+                  "font-size": "0.9em",
                 }}
                 onClick={() => {
                   const current = props.tagInput();
                   const tagsArr = current
-                    ? current.split(",").map((t) => t.trim())
+                    ? current.split(",").map((t: string) => t.trim())
                     : [];
                   if (!tagsArr.includes(tag)) {
                     props.setTagInput(
@@ -183,18 +192,18 @@ export function BatchTaggingPanel(props) {
                 position: "absolute",
                 background: "white",
                 border: "1px solid #ccc",
-                zIndex: 10,
-                marginTop: "2.2rem",
-                minWidth: "180px",
+                "z-index": 10,
+                "margin-top": "2.2rem",
+                "min-width": "180px",
               }}
             >
-              {peopleSuggestions().map((suggestion) => (
+              {peopleSuggestions().map((suggestion: string) => (
                 <div
                   style={{ padding: "0.25rem 0.75rem", cursor: "pointer" }}
                   onMouseDown={() => {
                     const current = props.peopleInput();
                     const peopleArr = current
-                      ? current.split(",").map((p) => p.trim())
+                      ? current.split(",").map((p: string) => p.trim())
                       : [];
                     peopleArr[peopleArr.length - 1] = suggestion;
                     props.setPeopleInput(peopleArr.filter(Boolean).join(", "));
@@ -210,26 +219,26 @@ export function BatchTaggingPanel(props) {
             style={{
               display: "flex",
               gap: "0.5rem",
-              flexWrap: "wrap",
+              "flex-wrap": "wrap",
               margin: "0.5rem 0",
             }}
           >
-            {topPeople().map((person) => (
+            {topPeople().map((person: string) => (
               <button
                 type="button"
                 class="pill"
                 style={{
                   padding: "0.25rem 0.75rem",
-                  borderRadius: "999px",
+                  "border-radius": "999px",
                   border: "1px solid #ccc",
                   background: "#f5f5f5",
                   cursor: "pointer",
-                  fontSize: "0.9em",
+                  "font-size": "0.9em",
                 }}
                 onClick={() => {
                   const current = props.peopleInput();
                   const peopleArr = current
-                    ? current.split(",").map((p) => p.trim())
+                    ? current.split(",").map((p: string) => p.trim())
                     : [];
                   if (!peopleArr.includes(person)) {
                     props.setPeopleInput(
