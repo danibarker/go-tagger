@@ -118,6 +118,31 @@ export function GalleryPage() {
 
   const clearSelection = () => setSelectedIds(() => new Set<number>());
 
+  const selectAllOnPage = () => {
+    const photoIds = photos().map((p) => p.id);
+    setSelectedIds(() => new Set(photoIds));
+  };
+
+  const unselectAllOnPage = () => {
+    const photoIds = new Set(photos().map((p) => p.id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      photoIds.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const photoIds = photos().map((p) => p.id);
+    const allSelected = photoIds.every((id) => selectedIds().has(id));
+
+    if (allSelected) {
+      unselectAllOnPage();
+    } else {
+      selectAllOnPage();
+    }
+  };
+
   // Refresh trigger for FilterPanel
   const [refreshPhotos, setRefreshPhotos] = createSignal(false);
 
@@ -255,28 +280,41 @@ export function GalleryPage() {
           }
         >
           <div style={{ position: "relative" }}>
-            {selectedIds().size > 0 && (
-              <button
-                type="button"
-                onClick={handleBatchDelete}
-                style={{
-                  position: "absolute",
-                  top: "-2.5rem",
-                  right: 0,
-                  background: "#fff",
-                  color: "#c00",
-                  border: "1px solid #c00",
-                  "border-radius": "999px",
-                  padding: "0.25rem 1rem",
-                  "font-weight": 700,
-                  cursor: "pointer",
-                  "font-size": "0.95em",
-                  "z-index": 10,
-                }}
-              >
-                Delete Selected ×
+            <div
+              style={{
+                position: "absolute",
+                top: "-2.5rem",
+                right: 0,
+                display: "flex",
+                gap: "0.5rem",
+                "z-index": 10,
+              }}
+            >
+              <button type="button" class="ghost" onClick={toggleSelectAll}>
+                {photos().length > 0 &&
+                photos().every((p) => selectedIds().has(p.id))
+                  ? "Unselect All"
+                  : "Select All"}
               </button>
-            )}
+              {selectedIds().size > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBatchDelete}
+                  style={{
+                    background: "#fff",
+                    color: "#c00",
+                    border: "1px solid #c00",
+                    "border-radius": "999px",
+                    padding: "0.25rem 1rem",
+                    "font-weight": 700,
+                    cursor: "pointer",
+                    "font-size": "0.95em",
+                  }}
+                >
+                  Delete Selected ×
+                </button>
+              )}
+            </div>
             <Gallery
               photos={photos()}
               selectedIds={selectedIds}
