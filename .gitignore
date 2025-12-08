@@ -31,3 +31,4 @@ dist-ssr
 # Vite cache
 .vite
 .env
+go-tagger
