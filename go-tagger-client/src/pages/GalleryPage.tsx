@@ -119,12 +119,12 @@ export function GalleryPage() {
   const clearSelection = () => setSelectedIds(() => new Set<number>());
 
   const selectAllOnPage = () => {
-    const photoIds = photos().map((p) => p.id);
+    const photoIds = photos().map((p) => p.ID);
     setSelectedIds(() => new Set(photoIds));
   };
 
   const unselectAllOnPage = () => {
-    const photoIds = new Set(photos().map((p) => p.id));
+    const photoIds = new Set(photos().map((p) => p.ID));
     setSelectedIds((prev) => {
       const next = new Set(prev);
       photoIds.forEach((id) => next.delete(id));
@@ -133,7 +133,7 @@ export function GalleryPage() {
   };
 
   const toggleSelectAll = () => {
-    const photoIds = photos().map((p) => p.id);
+    const photoIds = photos().map((p) => p.ID);
     const allSelected = photoIds.every((id) => selectedIds().has(id));
 
     if (allSelected) {
@@ -292,7 +292,7 @@ export function GalleryPage() {
             >
               <button type="button" class="ghost" onClick={toggleSelectAll}>
                 {photos().length > 0 &&
-                photos().every((p) => selectedIds().has(p.id))
+                photos().every((p) => selectedIds().has(p.ID))
                   ? "Unselect All"
                   : "Select All"}
               </button>
