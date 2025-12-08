@@ -41,7 +41,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
             id="batch-panel-close-btn"
             aria-label="Close Batch Tagging Panel"
           >
-            {props.showBatchPanel() ? "˄" : "˅"}
+            {props.showBatchPanel() ? "▲" : "▼"}
           </button>
         </div>
       </div>

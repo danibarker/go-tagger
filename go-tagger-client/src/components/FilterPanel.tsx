@@ -18,6 +18,7 @@ interface FilterPanelProps {
 }
 
 export function FilterPanel({
+  showFilterPanel,
   toggleFiltersPanel,
   limit,
   setLimit,
@@ -121,7 +122,7 @@ export function FilterPanel({
         <h3>Search Filters</h3>
         <div class="panel__header-actions">
           <button id="filters-panel-close-btn" aria-label="Close Filters Panel">
-            ✕
+            {showFilterPanel() ? "▲" : "▼"}
           </button>
         </div>
       </div>

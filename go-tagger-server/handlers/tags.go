@@ -13,9 +13,13 @@ func HandleGetTagsAutoComplete(c *gin.Context) {
 	query = query.Where("name LIKE ?", c.Query("q")+"%")
 	query.Find(&tags)
 
-	c.JSON(200, gin.H{
-		"tags": tags,
-	})
+	// Extract just the names for the frontend
+	tagNames := make([]string, len(tags))
+	for i, tag := range tags {
+		tagNames[i] = tag.Name
+	}
+
+	c.JSON(200, tagNames)
 }
 
 func HandleGetTopTags(c *gin.Context) {
@@ -32,7 +36,11 @@ func HandleGetTopTags(c *gin.Context) {
 
 	query.Find(&tags)
 
-	c.JSON(200, gin.H{
-		"tags": tags,
-	})
+	// Extract just the names for the frontend
+	tagNames := make([]string, len(tags))
+	for i, tag := range tags {
+		tagNames[i] = tag.Name
+	}
+
+	c.JSON(200, tagNames)
 }

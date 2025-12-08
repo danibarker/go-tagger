@@ -21,9 +21,13 @@ func HandleGetPeople(c *gin.Context) {
 
 	query.Find(&people)
 
-	c.JSON(200, gin.H{
-		"people": people,
-	})
+	// Extract just the names for the frontend
+	peopleNames := make([]string, len(people))
+	for i, person := range people {
+		peopleNames[i] = person.Name
+	}
+
+	c.JSON(200, peopleNames)
 }
 
 func HandleGetPeopleAutoComplete(c *gin.Context) {
@@ -32,7 +36,11 @@ func HandleGetPeopleAutoComplete(c *gin.Context) {
 	query = query.Where("name LIKE ?", c.Query("q")+"%")
 	query.Find(&people)
 
-	c.JSON(200, gin.H{
-		"people": people,
-	})
+	// Extract just the names for the frontend
+	peopleNames := make([]string, len(people))
+	for i, person := range people {
+		peopleNames[i] = person.Name
+	}
+
+	c.JSON(200, peopleNames)
 }
