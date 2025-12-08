@@ -59,6 +59,7 @@ export function FilterPanel({
   const [beforeTime, setBeforeTime] = createSignal("");
   const [afterDate, setAfterDate] = createSignal("");
   const [afterTime, setAfterTime] = createSignal("");
+  const [showUntagged, setShowUntagged] = createSignal(false);
 
   // Fetch photos when filters, page, limit, or refreshPhotos change
   createEffect(() => {
@@ -74,6 +75,7 @@ export function FilterPanel({
       beforeTime: beforeTime() || undefined,
       afterDate: afterDate() || undefined,
       afterTime: afterTime() || undefined,
+      untagged: showUntagged() || undefined,
     })
       .then((result) => {
         setPhotos(result.data ?? []);
@@ -96,6 +98,7 @@ export function FilterPanel({
     beforeTime,
     afterDate,
     afterTime,
+    showUntagged,
     limit,
     page,
     refreshPhotos,
@@ -115,6 +118,7 @@ export function FilterPanel({
     setBeforeTime("");
     setAfterDate("");
     setAfterTime("");
+    setShowUntagged(false);
     setPage(1);
   };
 
@@ -420,6 +424,24 @@ export function FilterPanel({
             <option value="image">Images Only</option>
             <option value="video">Videos Only</option>
           </select>
+        </div>
+        <div class="field-group">
+          <label
+            style={{
+              display: "flex",
+              "align-items": "center",
+              gap: "0.5rem",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              id="untagged-filter"
+              type="checkbox"
+              checked={showUntagged()}
+              onChange={(e) => setShowUntagged(e.currentTarget.checked)}
+            />
+            <span>Show only untagged photos</span>
+          </label>
         </div>
         <div
           style={{

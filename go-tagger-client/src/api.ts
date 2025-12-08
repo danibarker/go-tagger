@@ -16,6 +16,7 @@ export const fetchPhotos = async (
     beforeTime?: string;
     afterDate?: string;
     afterTime?: string;
+    untagged?: boolean;
   }
 ): Promise<PhotosResponse> => {
   const params = new URLSearchParams({
@@ -33,6 +34,7 @@ export const fetchPhotos = async (
   if (filters?.beforeTime) params.append("before_time", filters.beforeTime);
   if (filters?.afterDate) params.append("after_date", filters.afterDate);
   if (filters?.afterTime) params.append("after_time", filters.afterTime);
+  if (filters?.untagged) params.append("untagged", "true");
 
   const res = await fetch(`${API_BASE}/api/photos?${params.toString()}`);
   if (!res.ok) {
