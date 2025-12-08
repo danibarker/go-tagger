@@ -78,6 +78,7 @@ func main() {
 		api.POST("/photos/batch/tags", handlers.HandleBatchTagging)
 		api.POST("/photos/batch/people", handlers.HandleBatchPeopleTagging)
 		api.GET("/photos", handlers.HandleGetPhotos)
+		api.GET("/photos/:hash", handlers.HandleGetPhotoByHash)
 		api.DELETE("/photos", handlers.HandleDeletePhotos)
 		api.POST("/index", handlers.HandleIndexing)
 		api.PATCH("/index", handlers.HandleUpdateIndexing)

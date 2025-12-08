@@ -8,8 +8,11 @@ export type Photo = {
   thumbnail_path: string | null;
   width: number;
   height: number;
+  file_size: number;
   file_type: string;
   taken_at?: string;
+  tags?: Array<{ ID: number; name: string }>;
+  people?: Array<{ ID: number; name: string }>;
 };
 
 export type PhotosResponse = {

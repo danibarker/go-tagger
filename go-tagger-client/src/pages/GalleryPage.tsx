@@ -7,6 +7,8 @@ import { PageControls } from "../components/PageControls";
 import { PhotoViewerModal } from "./PhotoViewerModal";
 
 export function GalleryPage() {
+  console.log("GalleryPage mounted!");
+
   // Single photo delete handler
   const handleDeletePhoto = async (id: number) => {
     try {
@@ -174,45 +176,45 @@ export function GalleryPage() {
           photosLoading={photosLoading}
         />
         <Show
-          when={photos().length === 0 && !photosLoading()}
+          when={photos().length > 0 || photosLoading()}
           fallback={
-            <div style={{ position: "relative" }}>
-              {selectedIds().size > 0 && (
-                <button
-                  type="button"
-                  onClick={handleBatchDelete}
-                  style={{
-                    position: "absolute",
-                    top: "-2.5rem",
-                    right: 0,
-                    background: "#fff",
-                    color: "#c00",
-                    border: "1px solid #c00",
-                    "border-radius": "999px",
-                    padding: "0.25rem 1rem",
-                    "font-weight": 700,
-                    cursor: "pointer",
-                    "font-size": "0.95em",
-                    "z-index": 10,
-                  }}
-                >
-                  Delete Selected ×
-                </button>
-              )}
-              <Gallery
-                photos={photos()}
-                selectedIds={selectedIds}
-                onToggleSelection={toggleSelection}
-                isLoading={photosLoading()}
-                currentPage={currentPage()}
-                onDeletePhoto={handleDeletePhoto}
-              />
+            <div>
+              <p>No photos indexed yet. Run the indexer to get started.</p>
+              <button onClick={handleIndexing}>Start Indexing</button>
             </div>
           }
         >
-          <div>
-            <p>No photos indexed yet. Run the indexer to get started.</p>
-            <button onClick={handleIndexing}>Start Indexing</button>
+          <div style={{ position: "relative" }}>
+            {selectedIds().size > 0 && (
+              <button
+                type="button"
+                onClick={handleBatchDelete}
+                style={{
+                  position: "absolute",
+                  top: "-2.5rem",
+                  right: 0,
+                  background: "#fff",
+                  color: "#c00",
+                  border: "1px solid #c00",
+                  "border-radius": "999px",
+                  padding: "0.25rem 1rem",
+                  "font-weight": 700,
+                  cursor: "pointer",
+                  "font-size": "0.95em",
+                  "z-index": 10,
+                }}
+              >
+                Delete Selected ×
+              </button>
+            )}
+            <Gallery
+              photos={photos()}
+              selectedIds={selectedIds}
+              onToggleSelection={toggleSelection}
+              isLoading={photosLoading()}
+              currentPage={currentPage()}
+              onDeletePhoto={handleDeletePhoto}
+            />
           </div>
         </Show>
         <PageControls

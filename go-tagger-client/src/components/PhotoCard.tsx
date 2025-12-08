@@ -1,4 +1,3 @@
-import { Show } from "solid-js";
 import type { Photo } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
@@ -12,70 +11,64 @@ type PhotoCardProps = {
 };
 
 export function PhotoCard(props: PhotoCardProps) {
-  const handleDelete = (event: MouseEvent) => {
-    event.stopPropagation();
-    if (props.onDelete) props.onDelete(props.photo.ID);
-  };
-  const takenAt = () =>
-    props.photo.taken_at
-      ? new Date(props.photo.taken_at).toLocaleString()
-      : "Unknown date";
-
-  const handleClick = () => {
-    // Update URL hash to open modal
-    window.location.hash = props.photo.file_hash;
-  };
-
-  const handleCheckboxClick = (event: MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    props.onToggleSelection(props.photo.ID);
-  };
-
   return (
-    <button
-      type="button"
+    <div
       class={`gallery__item ${props.isSelected() ? "is-selected" : ""}`}
-      onClick={handleClick}
-      style={{ position: "relative" }}
+      onClick={() => (window.location.hash = props.photo.file_hash)}
+      style={{ position: "relative", cursor: "pointer" }}
     >
-      <Show
-        when={props.photo.thumbnail_path}
-        fallback={<div class="gallery__placeholder">No Thumbnail</div>}
-      >
-        {(thumb) => (
-          <img src={`${API_BASE}${thumb()}`} alt="thumbnail" loading="lazy" />
-        )}
-      </Show>
+      {props.photo.thumbnail_path ? (
+        <img
+          src={`${API_BASE}${props.photo.thumbnail_path}`}
+          alt="thumbnail"
+          loading="lazy"
+        />
+      ) : (
+        <div class="gallery__placeholder">No Thumbnail</div>
+      )}
       <button
         type="button"
         aria-label="Delete photo"
-        onClick={handleDelete}
+        onClick={(e) => {
+          e.stopPropagation();
+          props.onDelete?.(props.photo.ID);
+        }}
         style={{
           position: "absolute",
           top: "4px",
-          right: "4px",
+          left: "4px",
           width: "20px",
           height: "20px",
           border: "none",
           background: "#fff",
           color: "#c00",
-          "font-weight": 700,
+          "font-weight": "700",
           "border-radius": "50%",
           cursor: "pointer",
           "font-size": "1em",
-          "z-index": 2,
+          "z-index": "2",
         }}
       >
         ×
       </button>
       <div class="gallery__meta">
-        <span>{takenAt()}</span>
+        <span>
+          {props.photo.taken_at
+            ? new Date(props.photo.taken_at).toLocaleString()
+            : "Unknown date"}
+        </span>
         <span>{props.photo.file_type.toUpperCase()}</span>
       </div>
-      <div class="gallery__checkbox" onClick={handleCheckboxClick}>
+      <div
+        class="gallery__checkbox"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          props.onToggleSelection(props.photo.ID);
+        }}
+      >
         <input type="checkbox" readOnly checked={props.isSelected()} />
       </div>
-    </button>
+    </div>
   );
 }

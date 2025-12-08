@@ -20,6 +20,7 @@ type Photo struct {
 	ThumbnailPath string `gorm:"type:varchar(255)" json:"thumbnail_path"`
 	Width         int    `gorm:"not null" json:"width"`
 	Height        int    `gorm:"not null" json:"height"`
+	FileSize      int64  `gorm:"not null;default:0" json:"file_size"` // Size in bytes
 
 	FileType string `gorm:"type:varchar(8);not null" json:"file_type"` // e.g., image, video
 

@@ -82,6 +82,27 @@ func init() {
 	ThumbnailRoot = os.Getenv("THUMBNAIL_ROOT")
 }
 
+// generateImageThumbnailFFmpeg uses ffmpeg to generate a thumbnail from an image file (including WebP VP8X)
+func generateImageThumbnailFFmpeg(imagePath, thumbnailPath string) error {
+	// Use ffmpeg to convert and resize the image
+	// -i: input file
+	// -vf scale=300:-1: resize to width 300, maintain aspect ratio
+	// -frames:v 1: extract only 1 frame (for animated formats)
+	cmd := exec.Command("ffmpeg",
+		"-i", imagePath,
+		"-vf", "scale=300:-1",
+		"-frames:v", "1",
+		"-y", // Overwrite output file if exists
+		thumbnailPath,
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ffmpeg error: %v, output: %s", err, string(output))
+	}
+	return nil
+}
+
 // generateVideoThumbnail uses ffmpeg to extract a thumbnail from a video file
 func generateVideoThumbnail(videoPath, thumbnailPath string) error {
 	// Use ffmpeg to extract a frame at 1 second into the video
@@ -237,16 +258,24 @@ func IndexFiles() {
 			if _, err := os.Stat(thumbDiskPath); os.IsNotExist(err) {
 				switch fileType {
 				case "image":
-					// Generate image thumbnail
-					img, err := imaging.Open(path)
-					if err != nil {
-						log.Printf("Failed to open image for thumbnail %s: %v", path, err)
-						thumbURL = ""
-					} else {
-						thumb := imaging.Resize(img, 300, 0, imaging.Lanczos)
-						if err := imaging.Save(thumb, thumbDiskPath); err != nil {
-							log.Printf("Failed to save thumbnail for %s: %v", path, err)
+					// For WebP files, use ffmpeg since Go's webp decoder doesn't support VP8X
+					if ext == ".webp" {
+						if err := generateImageThumbnailFFmpeg(path, thumbDiskPath); err != nil {
+							log.Printf("Failed to generate webp thumbnail for %s: %v", path, err)
 							thumbURL = ""
+						}
+					} else {
+						// Generate image thumbnail using imaging library for other formats
+						img, err := imaging.Open(path)
+						if err != nil {
+							log.Printf("Failed to open image for thumbnail %s: %v", path, err)
+							thumbURL = ""
+						} else {
+							thumb := imaging.Resize(img, 300, 0, imaging.Lanczos)
+							if err := imaging.Save(thumb, thumbDiskPath); err != nil {
+								log.Printf("Failed to save thumbnail for %s: %v", path, err)
+								thumbURL = ""
+							}
 						}
 					}
 				case "video":
@@ -264,20 +293,22 @@ func IndexFiles() {
 				ThumbnailPath: thumbURL,
 				Width:         width,
 				Height:        height,
+				FileSize:      info.Size(), // File size in bytes
 				TakenAt:       takenAt,
 				FileType:      fileType,
 			}
 			newPhotos = append(newPhotos, photo)
 			if len(newPhotos) >= 1000 {
 				result := db.DB.Clauses(clause.OnConflict{
-					// Check for a conflict on the 'file_hash' column
-					Columns: []clause.Column{{Name: "file_hash"}},
+					// Check for conflict on file_path (the constraint that's failing)
+					Columns: []clause.Column{{Name: "file_path"}},
 					// If a conflict occurs, do nothing and continue to the next record
 					DoNothing: true,
 				}).CreateInBatches(newPhotos, 1000)
 
 				if result.Error != nil {
-					log.Fatalf("Error during chunk batch insert: %v", result.Error)
+					log.Printf("Error during chunk batch insert: %v", result.Error)
+					// Don't crash the server, just log and continue
 				}
 				log.Printf("Inserted %d photos in chunk.", result.RowsAffected)
 
@@ -296,13 +327,14 @@ func IndexFiles() {
 	if len(newPhotos) > 0 {
 		// Insert up to 1000 records at a time
 		result := db.DB.Clauses(clause.OnConflict{
-			// Check for a conflict on the 'file_hash' column
-			Columns: []clause.Column{{Name: "file_hash"}},
+			// Check for conflict on file_path (the constraint that's failing)
+			Columns: []clause.Column{{Name: "file_path"}},
 			// If a conflict occurs, do nothing and continue to the next record
 			DoNothing: true,
 		}).CreateInBatches(newPhotos, len(newPhotos)) // Insert the remainder
 		if result.Error != nil {
-			log.Fatalf("Error during batch insert: %v", result.Error)
+			log.Printf("Error during batch insert: %v", result.Error)
+			// Don't crash the server, just log and continue
 		}
 		log.Printf("File system index complete. Inserted %d new records in batch.", result.RowsAffected)
 	} else {

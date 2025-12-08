@@ -148,6 +148,26 @@ func HandleDeletePhotos(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Photos marked for deletion successfully.", "photos_marked": len(input.PhotoIDs)})
 }
 
+// HandleGetPhotoByHash returns full photo metadata by hash
+func HandleGetPhotoByHash(c *gin.Context) {
+	hash := c.Param("hash")
+	if hash == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "hash parameter is required"})
+		return
+	}
+
+	var photo models.Photo
+	if err := db.DB.Preload("Tags").Preload("People").Where("file_hash = ?", hash).First(&photo).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "photo not found"})
+		return
+	}
+
+	// Extract just the filename from the full path
+	photo.FilePath = filepath.Base(photo.FilePath)
+
+	c.JSON(http.StatusOK, photo)
+}
+
 // HandleServeOriginalPhoto streams the original media file by photo hash.
 func HandleServeOriginalPhoto(c *gin.Context) {
 	hash := c.Param("hash")
