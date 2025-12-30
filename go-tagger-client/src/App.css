@@ -197,6 +197,28 @@ button.ghost:disabled {
   cursor: not-allowed;
 }
 
+.pill {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 0.9em;
+  line-height: 1.2;
+}
+
+.pill--all {
+  background: #dcfce7;
+  border-color: #16a34a;
+  color: #166534;
+}
+
+.pill--some {
+  background: #fef9c3;
+  border-color: #ca8a04;
+  color: #854d0e;
+}
+
 .feedback {
   margin-top: 1rem;
   font-weight: 600;

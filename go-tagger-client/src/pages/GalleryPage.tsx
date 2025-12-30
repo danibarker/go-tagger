@@ -1,11 +1,6 @@
 import { Show, createSignal, createEffect } from "solid-js";
 import { Gallery } from "../components/Gallery";
-import {
-  triggerIndexing,
-  deletePhotos,
-  batchTagPhotos,
-  batchTagPeople,
-} from "../api";
+import { triggerIndexing, deletePhotos } from "../api";
 import { FilterPanel } from "../components/FilterPanel";
 import { BatchTaggingPanel } from "../components/BatchTaggingPanel";
 import { PageControls } from "../components/PageControls";
@@ -152,52 +147,6 @@ export function GalleryPage() {
     } catch (error) {}
   };
 
-  const handleBatchAddTags = async () => {
-    const ids = Array.from(selectedIds());
-    if (!ids.length) {
-      alert("No photos selected");
-      return;
-    }
-    const tags = tagInput()
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-    if (!tags.length) {
-      alert("No tags entered");
-      return;
-    }
-    try {
-      await batchTagPhotos(ids, tags);
-      setRefreshPhotos((v) => !v);
-      setTagInput("");
-    } catch (error) {
-      alert(`Failed to add tags: ${error}`);
-    }
-  };
-
-  const handleBatchAddPeople = async () => {
-    const ids = Array.from(selectedIds());
-    if (!ids.length) {
-      alert("No photos selected");
-      return;
-    }
-    const people = peopleInput()
-      .split(",")
-      .map((p) => p.trim())
-      .filter(Boolean);
-    if (!people.length) {
-      alert("No people entered");
-      return;
-    }
-    try {
-      await batchTagPeople(ids, people);
-      setRefreshPhotos((v) => !v);
-      setPeopleInput("");
-    } catch (error) {
-      alert(`Failed to add people: ${error}`);
-    }
-  };
-
   const toggleFiltersPanel = () => {
     const panel = document.getElementById("filters-panel");
     if (panel) {
@@ -236,32 +185,16 @@ export function GalleryPage() {
       />
 
       <BatchTaggingPanel
+        selectedPhotoIds={() => Array.from(selectedIds())}
+        selectedPhotos={() => photos().filter((p) => selectedIds().has(p.ID))}
+        onUpdated={() => setRefreshPhotos((v) => !v)}
         tagInput={tagInput}
         setTagInput={setTagInput}
         peopleInput={peopleInput}
         setPeopleInput={setPeopleInput}
         showBatchPanel={showBatchPanel}
         toggleBatchPanel={toggleBatchPanel}
-      >
-        <div class="batch-actions">
-          <button
-            type="button"
-            class="primary"
-            onClick={handleBatchAddTags}
-            disabled={selectedIds().size === 0}
-          >
-            Add Tags to Selected ({selectedIds().size})
-          </button>
-          <button
-            type="button"
-            class="primary"
-            onClick={handleBatchAddPeople}
-            disabled={selectedIds().size === 0}
-          >
-            Add People to Selected ({selectedIds().size})
-          </button>
-        </div>
-      </BatchTaggingPanel>
+      />
 
       <section class="panel panel--open">
         <PageControls

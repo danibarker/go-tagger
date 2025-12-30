@@ -71,31 +71,59 @@ export const batchTagPhotos = async (
   photoIds: number[],
   tags: string[]
 ): Promise<void> => {
-  const res = await fetch(`${API_BASE}/api/photos/batch/tags`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ photo_ids: photoIds, new_tags: tags }),
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? "Failed to batch tag photos");
-  }
+  await batchUpdatePhotoTags(photoIds, { add: tags });
 };
 
 export const batchTagPeople = async (
   photoIds: number[],
   people: string[]
 ): Promise<void> => {
-  const res = await fetch(`${API_BASE}/api/photos/batch/people`, {
+  await batchUpdatePhotoPeople(photoIds, { add: people });
+};
+
+export const batchUpdatePhotoTags = async (
+  photoIds: number[],
+  changes: { add?: string[]; remove?: string[] }
+): Promise<void> => {
+  const add = (changes.add ?? []).map((t) => t.trim()).filter(Boolean);
+  const remove = (changes.remove ?? []).map((t) => t.trim()).filter(Boolean);
+
+  const res = await fetch(`${API_BASE}/api/photos/batch/tags`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ photo_ids: photoIds, new_people: people }),
+    body: JSON.stringify({
+      photo_ids: photoIds,
+      add_tags: add,
+      remove_tags: remove,
+    }),
   });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? "Failed to batch tag people");
+    throw new Error(body.error ?? "Failed to batch update photo tags");
+  }
+};
+
+export const batchUpdatePhotoPeople = async (
+  photoIds: number[],
+  changes: { add?: string[]; remove?: string[] }
+): Promise<void> => {
+  const add = (changes.add ?? []).map((p) => p.trim()).filter(Boolean);
+  const remove = (changes.remove ?? []).map((p) => p.trim()).filter(Boolean);
+
+  const res = await fetch(`${API_BASE}/api/photos/batch/people`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      photo_ids: photoIds,
+      add_people: add,
+      remove_people: remove,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to batch update photo people");
   }
 };
 

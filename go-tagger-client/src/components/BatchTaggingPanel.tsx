@@ -1,16 +1,29 @@
-import { createSignal, createEffect } from "solid-js";
-import { getTopTags, getTopPeople } from "../api";
-import { getTagSuggestions, getPeopleSuggestions } from "../api";
+import { createSignal, createEffect, createMemo } from "solid-js";
+import type { Photo } from "../types";
+import {
+  getTopTags,
+  getTopPeople,
+  getTagSuggestions,
+  getPeopleSuggestions,
+  batchUpdatePhotoTags,
+  batchUpdatePhotoPeople,
+} from "../api";
 
 interface BatchTaggingPanelProps {
   toggleBatchPanel: () => void;
   showBatchPanel: () => boolean;
+  selectedPhotoIds: () => number[];
+  selectedPhotos: () => Photo[];
+  onUpdated: () => void;
   tagInput: () => string;
   setTagInput: (val: string) => void;
   peopleInput: () => string;
   setPeopleInput: (val: string) => void;
   children?: any;
 }
+
+type TriState = "none" | "some" | "all";
+type OverrideState = "none" | "all";
 
 export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
   // Autocomplete state
@@ -24,6 +37,85 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
   const [topTags, setTopTags] = createSignal<string[]>([]);
   const [topPeople, setTopPeople] = createSignal<string[]>([]);
 
+  const [tagOverrides, setTagOverrides] = createSignal<
+    Map<string, OverrideState>
+  >(new Map());
+  const [peopleOverrides, setPeopleOverrides] = createSignal<
+    Map<string, OverrideState>
+  >(new Map());
+
+  const parseCsv = (value: string): string[] =>
+    value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  const selectedTotal = createMemo(() => props.selectedPhotos().length);
+
+  const tagCounts = createMemo(() => {
+    const counts = new Map<string, number>();
+    for (const photo of props.selectedPhotos()) {
+      const unique = new Set((photo.tags ?? []).map((t) => t.name));
+      for (const name of unique) {
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
+    return counts;
+  });
+
+  const peopleCounts = createMemo(() => {
+    const counts = new Map<string, number>();
+    for (const photo of props.selectedPhotos()) {
+      const unique = new Set((photo.people ?? []).map((p) => p.name));
+      for (const name of unique) {
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
+    return counts;
+  });
+
+  const baseStateFor = (
+    counts: Map<string, number>,
+    name: string,
+    total: number
+  ): TriState => {
+    if (total <= 0) return "none";
+    const count = counts.get(name) ?? 0;
+    if (count <= 0) return "none";
+    if (count >= total) return "all";
+    return "some";
+  };
+
+  const visualStateFor = (
+    base: TriState,
+    override: OverrideState | undefined
+  ): TriState => {
+    if (override === "all") return "all";
+    if (override === "none") return "none";
+    return base;
+  };
+
+  const pillClassFor = (state: TriState): string => {
+    if (state === "all") return "pill pill--all";
+    if (state === "some") return "pill pill--some";
+    return "pill";
+  };
+
+  const toggleOverride = (
+    name: string,
+    currentVisual: TriState,
+    setOverrides: (next: Map<string, OverrideState>) => void,
+    overrides: Map<string, OverrideState>
+  ) => {
+    const next = new Map(overrides);
+    if (currentVisual === "all") {
+      next.set(name, "none");
+    } else {
+      next.set(name, "all");
+    }
+    setOverrides(next);
+  };
+
   // Fetch top tags/people on mount
   createEffect(() => {
     getTopTags()
@@ -32,6 +124,18 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
     getTopPeople()
       .then(setTopPeople)
       .catch(() => setTopPeople([]));
+  });
+
+  // Reset explicit overrides when selection changes
+  createEffect(() => {
+    const key = props
+      .selectedPhotoIds()
+      .slice()
+      .sort((a, b) => a - b)
+      .join(",");
+    void key;
+    setTagOverrides(new Map());
+    setPeopleOverrides(new Map());
   });
 
   const acceptTagSuggestion = (suggestion: string) => {
@@ -54,6 +158,86 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
     props.setPeopleInput(peopleArr.filter(Boolean).join(", "));
     setShowPeopleDropdown(false);
     setSelectedPersonIndex(-1);
+  };
+
+  const handleUpdateTags = async () => {
+    const ids = props.selectedPhotoIds();
+    if (!ids.length) {
+      alert("No photos selected");
+      return;
+    }
+
+    const typedAdds = parseCsv(props.tagInput());
+    const overrides = tagOverrides();
+    const add = Array.from(
+      new Set([
+        ...typedAdds,
+        ...Array.from(overrides.entries())
+          .filter(([, v]) => v === "all")
+          .map(([k]) => k),
+      ])
+    );
+    const remove = Array.from(
+      new Set(
+        Array.from(overrides.entries())
+          .filter(([, v]) => v === "none")
+          .map(([k]) => k)
+      )
+    );
+
+    if (!add.length && !remove.length) {
+      alert("No tag changes selected");
+      return;
+    }
+
+    try {
+      await batchUpdatePhotoTags(ids, { add, remove });
+      props.onUpdated();
+      props.setTagInput("");
+      setTagOverrides(new Map());
+    } catch (error) {
+      alert(`Failed to update tags: ${error}`);
+    }
+  };
+
+  const handleUpdatePeople = async () => {
+    const ids = props.selectedPhotoIds();
+    if (!ids.length) {
+      alert("No photos selected");
+      return;
+    }
+
+    const typedAdds = parseCsv(props.peopleInput());
+    const overrides = peopleOverrides();
+    const add = Array.from(
+      new Set([
+        ...typedAdds,
+        ...Array.from(overrides.entries())
+          .filter(([, v]) => v === "all")
+          .map(([k]) => k),
+      ])
+    );
+    const remove = Array.from(
+      new Set(
+        Array.from(overrides.entries())
+          .filter(([, v]) => v === "none")
+          .map(([k]) => k)
+      )
+    );
+
+    if (!add.length && !remove.length) {
+      alert("No people changes selected");
+      return;
+    }
+
+    try {
+      await batchUpdatePhotoPeople(ids, { add, remove });
+      props.onUpdated();
+      props.setPeopleInput("");
+      setPeopleOverrides(new Map());
+    } catch (error) {
+      alert(`Failed to update people: ${error}`);
+    }
   };
   // All props are signals or handlers from GalleryPage
   return (
@@ -153,33 +337,35 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
               margin: "0.5rem 0",
             }}
           >
-            {topTags().map((tag: string) => (
-              <button
-                type="button"
-                class="pill"
-                style={{
-                  padding: "0.25rem 0.75rem",
-                  "border-radius": "999px",
-                  border: "1px solid #ccc",
-                  background: "#f5f5f5",
-                  cursor: "pointer",
-                  "font-size": "0.9em",
-                }}
-                onClick={() => {
-                  const current = props.tagInput();
-                  const tagsArr = current
-                    ? current.split(",").map((t: string) => t.trim())
-                    : [];
-                  if (!tagsArr.includes(tag)) {
-                    props.setTagInput(
-                      tagsArr.concat(tag).filter(Boolean).join(", ")
+            {topTags().map((tag: string) => {
+              const base = baseStateFor(tagCounts(), tag, selectedTotal());
+              const override = tagOverrides().get(tag);
+              const visual = visualStateFor(base, override);
+
+              return (
+                <button
+                  type="button"
+                  class={pillClassFor(visual)}
+                  onClick={() => {
+                    toggleOverride(
+                      tag,
+                      visual,
+                      setTagOverrides,
+                      tagOverrides()
                     );
+                  }}
+                  title={
+                    base === "all"
+                      ? "On all selected"
+                      : base === "some"
+                      ? "On some selected"
+                      : "Not on selected"
                   }
-                }}
-              >
-                {tag}
-              </button>
-            ))}
+                >
+                  {tag}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div class="field-group">
@@ -268,36 +454,59 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
               margin: "0.5rem 0",
             }}
           >
-            {topPeople().map((person: string) => (
-              <button
-                type="button"
-                class="pill"
-                style={{
-                  padding: "0.25rem 0.75rem",
-                  "border-radius": "999px",
-                  border: "1px solid #ccc",
-                  background: "#f5f5f5",
-                  cursor: "pointer",
-                  "font-size": "0.9em",
-                }}
-                onClick={() => {
-                  const current = props.peopleInput();
-                  const peopleArr = current
-                    ? current.split(",").map((p: string) => p.trim())
-                    : [];
-                  if (!peopleArr.includes(person)) {
-                    props.setPeopleInput(
-                      peopleArr.concat(person).filter(Boolean).join(", ")
+            {topPeople().map((person: string) => {
+              const base = baseStateFor(
+                peopleCounts(),
+                person,
+                selectedTotal()
+              );
+              const override = peopleOverrides().get(person);
+              const visual = visualStateFor(base, override);
+
+              return (
+                <button
+                  type="button"
+                  class={pillClassFor(visual)}
+                  onClick={() => {
+                    toggleOverride(
+                      person,
+                      visual,
+                      setPeopleOverrides,
+                      peopleOverrides()
                     );
+                  }}
+                  title={
+                    base === "all"
+                      ? "On all selected"
+                      : base === "some"
+                      ? "On some selected"
+                      : "Not on selected"
                   }
-                }}
-              >
-                {person}
-              </button>
-            ))}
+                >
+                  {person}
+                </button>
+              );
+            })}
           </div>
         </div>
-        {/* ...existing batch tagging UI from GalleryPage... */}
+        <div class="batch-actions">
+          <button
+            type="button"
+            class="primary"
+            onClick={handleUpdateTags}
+            disabled={props.selectedPhotoIds().length === 0}
+          >
+            Update Tags of Selected ({props.selectedPhotoIds().length})
+          </button>
+          <button
+            type="button"
+            class="primary"
+            onClick={handleUpdatePeople}
+            disabled={props.selectedPhotoIds().length === 0}
+          >
+            Update People of Selected ({props.selectedPhotoIds().length})
+          </button>
+        </div>
         {props.children}
       </div>
     </section>

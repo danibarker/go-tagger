@@ -11,11 +11,27 @@ import (
 
 // HandleBatchTagging processes the bulk tagging request from the frontend.
 func HandleBatchTagging(c *gin.Context) {
-	var input models.BatchTagInput
+	var input struct {
+		PhotoIDs []uint `json:"photo_ids" binding:"required"`
+		// Backward compatible add field
+		NewTags []string `json:"new_tags"`
+		// Preferred add field
+		AddTags []string `json:"add_tags"`
+		// Remove tags from all selected photos
+		RemoveTags []string `json:"remove_tags"`
+	}
 
 	// 1. Validate and Bind Input
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: photo_ids and new_tags are required."})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: photo_ids is required."})
+		return
+	}
+	addTagNames := input.AddTags
+	if len(addTagNames) == 0 {
+		addTagNames = input.NewTags
+	}
+	if len(addTagNames) == 0 && len(input.RemoveTags) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: provide add_tags/new_tags and/or remove_tags."})
 		return
 	}
 
@@ -24,21 +40,40 @@ func HandleBatchTagging(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching photos."})
 		return
 	}
-	var tags []models.Tag
-	for _, tagName := range input.NewTags {
+	var tagsToAdd []models.Tag
+	for _, tagName := range addTagNames {
+		if tagName == "" {
+			continue
+		}
 		var tag models.Tag
 		if err := db.DB.FirstOrCreate(&tag, models.Tag{Name: tagName}).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while creating/fetching tags."})
 			return
 		}
-		tags = append(tags, tag)
+		tagsToAdd = append(tagsToAdd, tag)
+	}
+
+	var tagsToRemove []models.Tag
+	if len(input.RemoveTags) > 0 {
+		if err := db.DB.Where("name IN ?", input.RemoveTags).Find(&tagsToRemove).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching tags to remove."})
+			return
+		}
 	}
 
 	updated := 0
 	for _, photo := range photos {
-		if err := db.DB.Model(&photo).Association("Tags").Append(&tags); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while updating photo tags."})
-			return
+		if len(tagsToAdd) > 0 {
+			if err := db.DB.Model(&photo).Association("Tags").Append(&tagsToAdd); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while adding photo tags."})
+				return
+			}
+		}
+		if len(tagsToRemove) > 0 {
+			if err := db.DB.Model(&photo).Association("Tags").Delete(&tagsToRemove); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while removing photo tags."})
+				return
+			}
 		}
 		updated++
 	}
@@ -62,18 +97,31 @@ func HandleBatchTagging(c *gin.Context) {
 	}(updatedPhotos)
 
 	// 5. Success Response
-	c.JSON(http.StatusOK, gin.H{"message": "Successfully added tags to all photos.", "photos_updated": updated})
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully updated tags for selected photos.", "photos_updated": updated})
 }
 
 // HandleBatchPeopleTagging processes the bulk people tagging request
 func HandleBatchPeopleTagging(c *gin.Context) {
 	var input struct {
-		PhotoIDs  []uint   `json:"photo_ids" binding:"required"`
-		NewPeople []string `json:"new_people" binding:"required"`
+		PhotoIDs []uint `json:"photo_ids" binding:"required"`
+		// Backward compatible add field
+		NewPeople []string `json:"new_people"`
+		// Preferred add field
+		AddPeople []string `json:"add_people"`
+		// Remove people from all selected photos
+		RemovePeople []string `json:"remove_people"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: photo_ids and new_people are required."})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: photo_ids is required."})
+		return
+	}
+	addPeopleNames := input.AddPeople
+	if len(addPeopleNames) == 0 {
+		addPeopleNames = input.NewPeople
+	}
+	if len(addPeopleNames) == 0 && len(input.RemovePeople) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: provide add_people/new_people and/or remove_people."})
 		return
 	}
 
@@ -83,26 +131,45 @@ func HandleBatchPeopleTagging(c *gin.Context) {
 		return
 	}
 
-	var people []models.Person
-	for _, personName := range input.NewPeople {
+	var peopleToAdd []models.Person
+	for _, personName := range addPeopleNames {
+		if personName == "" {
+			continue
+		}
 		var person models.Person
 		if err := db.DB.FirstOrCreate(&person, models.Person{Name: personName}).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while creating/fetching people."})
 			return
 		}
-		people = append(people, person)
+		peopleToAdd = append(peopleToAdd, person)
+	}
+
+	var peopleToRemove []models.Person
+	if len(input.RemovePeople) > 0 {
+		if err := db.DB.Where("name IN ?", input.RemovePeople).Find(&peopleToRemove).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching people to remove."})
+			return
+		}
 	}
 
 	updated := 0
 	for _, photo := range photos {
-		if err := db.DB.Model(&photo).Association("People").Append(&people); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while updating photo people."})
-			return
+		if len(peopleToAdd) > 0 {
+			if err := db.DB.Model(&photo).Association("People").Append(&peopleToAdd); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while adding photo people."})
+				return
+			}
+		}
+		if len(peopleToRemove) > 0 {
+			if err := db.DB.Model(&photo).Association("People").Delete(&peopleToRemove); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while removing photo people."})
+				return
+			}
 		}
 		updated++
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Successfully added people to all photos.", "photos_updated": updated})
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully updated people for selected photos.", "photos_updated": updated})
 }
 
 func HandleIndexing(c *gin.Context) {
