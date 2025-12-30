@@ -61,6 +61,11 @@ func HandleBatchTagging(c *gin.Context) {
 		}
 	}
 
+	tagIDsToRemove := make([]uint, 0, len(tagsToRemove))
+	for _, t := range tagsToRemove {
+		tagIDsToRemove = append(tagIDsToRemove, t.ID)
+	}
+
 	updated := 0
 	for _, photo := range photos {
 		if len(tagsToAdd) > 0 {
@@ -69,8 +74,8 @@ func HandleBatchTagging(c *gin.Context) {
 				return
 			}
 		}
-		if len(tagsToRemove) > 0 {
-			if err := db.DB.Model(&photo).Association("Tags").Delete(&tagsToRemove); err != nil {
+		if len(tagIDsToRemove) > 0 {
+			if err := db.DB.Table("photo_tags").Where("photo_id = ? AND tag_id IN ?", photo.ID, tagIDsToRemove).Delete(&struct{}{}).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while removing photo tags."})
 				return
 			}
@@ -152,6 +157,11 @@ func HandleBatchPeopleTagging(c *gin.Context) {
 		}
 	}
 
+	peopleIDsToRemove := make([]uint, 0, len(peopleToRemove))
+	for _, p := range peopleToRemove {
+		peopleIDsToRemove = append(peopleIDsToRemove, p.ID)
+	}
+
 	updated := 0
 	for _, photo := range photos {
 		if len(peopleToAdd) > 0 {
@@ -160,8 +170,8 @@ func HandleBatchPeopleTagging(c *gin.Context) {
 				return
 			}
 		}
-		if len(peopleToRemove) > 0 {
-			if err := db.DB.Model(&photo).Association("People").Delete(&peopleToRemove); err != nil {
+		if len(peopleIDsToRemove) > 0 {
+			if err := db.DB.Table("photo_people").Where("photo_id = ? AND person_id IN ?", photo.ID, peopleIDsToRemove).Delete(&struct{}{}).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while removing photo people."})
 				return
 			}
