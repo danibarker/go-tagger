@@ -191,3 +191,27 @@ export const deletePhotos = async (photoIds: number[]): Promise<void> => {
     throw new Error(body.error ?? "Failed to delete photos");
   }
 };
+
+export const getPerfMonitoring = async (): Promise<{ enabled: boolean }> => {
+  const res = await fetch(`${API_BASE}/api/perf-monitoring`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      body.error ?? "Failed to fetch performance monitoring status",
+    );
+  }
+  return (await res.json()) as { enabled: boolean };
+};
+
+export const setPerfMonitoring = async (enabled: boolean): Promise<void> => {
+  const res = await fetch(`${API_BASE}/api/perf-monitoring`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to set performance monitoring");
+  }
+};

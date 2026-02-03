@@ -232,3 +232,19 @@ func HandleResetIndex(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Database cleared. Full reindex started in the background."})
 }
+
+func HandleGetPerfMonitoring(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"enabled": services.EnablePerfMonitoring})
+}
+
+func HandleSetPerfMonitoring(c *gin.Context) {
+	var input struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input."})
+		return
+	}
+	services.EnablePerfMonitoring = input.Enabled
+	c.JSON(http.StatusOK, gin.H{"message": "Performance monitoring updated.", "enabled": services.EnablePerfMonitoring})
+}

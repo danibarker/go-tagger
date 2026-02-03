@@ -5,6 +5,8 @@ import {
   triggerUpdateIndex,
   resetAndReindex,
   deletePhotos,
+  getPerfMonitoring,
+  setPerfMonitoring,
 } from "../api";
 import { FilterPanel } from "../components/FilterPanel";
 import { BatchTaggingPanel } from "../components/BatchTaggingPanel";
@@ -98,6 +100,7 @@ export function GalleryPage() {
   const [selectedIds, setSelectedIds] = createSignal<Set<number>>(new Set());
   const [showFilterPanel, setShowFilterPanel] = createSignal(false);
   const [showBatchPanel, setShowBatchPanel] = createSignal(false);
+  const [perfMonitoring, setPerfMonitoringState] = createSignal(true);
   // Photo data, loading state, and pagination info will come from FilterPanel
   const [photos, setPhotos] = createSignal<any[]>([]);
   const [photosLoading, setPhotosLoading] = createSignal(false);
@@ -145,6 +148,25 @@ export function GalleryPage() {
 
   // Refresh trigger for FilterPanel
   const [refreshPhotos, setRefreshPhotos] = createSignal(false);
+
+  // Fetch initial performance monitoring state
+  createEffect(() => {
+    getPerfMonitoring()
+      .then((data) => setPerfMonitoringState(data.enabled))
+      .catch(() => {
+        // Ignore error, use default value
+      });
+  });
+
+  const handleTogglePerfMonitoring = async () => {
+    const newValue = !perfMonitoring();
+    try {
+      await setPerfMonitoring(newValue);
+      setPerfMonitoringState(newValue);
+    } catch (error) {
+      alert("Failed to toggle performance monitoring");
+    }
+  };
 
   const handleIndexing = async () => {
     try {
@@ -219,6 +241,22 @@ export function GalleryPage() {
           <button type="button" class="ghost" onClick={handleResetIndex}>
             Reset & Reindex
           </button>
+          <label
+            style={{
+              display: "flex",
+              "align-items": "center",
+              gap: "0.25rem",
+              cursor: "pointer",
+              "margin-left": "1rem",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={perfMonitoring()}
+              onChange={handleTogglePerfMonitoring}
+            />
+            <span>Performance Monitoring</span>
+          </label>
         </div>
       </header>
 
