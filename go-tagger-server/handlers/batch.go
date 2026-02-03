@@ -205,3 +205,30 @@ func HandleUpdateIndexing(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Index update started in the background."})
 }
+
+func HandleResetIndex(c *gin.Context) {
+	// Check immediately if an index is already running
+	if services.IsIndexingRunning() {
+		c.JSON(http.StatusAccepted, gin.H{"message": "Index already running in background."})
+		return
+	}
+
+	// Delete all photos and associations
+	if err := db.DB.Exec("DELETE FROM photo_tags").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear photo tags."})
+		return
+	}
+	if err := db.DB.Exec("DELETE FROM photo_people").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear photo people."})
+		return
+	}
+	if err := db.DB.Exec("DELETE FROM photos").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear photos."})
+		return
+	}
+
+	// Now trigger a full reindex
+	go services.IndexFiles()
+
+	c.JSON(http.StatusOK, gin.H{"message": "Database cleared. Full reindex started in the background."})
+}

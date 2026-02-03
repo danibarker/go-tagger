@@ -1,6 +1,11 @@
 import { Show, createSignal, createEffect } from "solid-js";
 import { Gallery } from "../components/Gallery";
-import { triggerIndexing, deletePhotos } from "../api";
+import {
+  triggerIndexing,
+  triggerUpdateIndex,
+  resetAndReindex,
+  deletePhotos,
+} from "../api";
 import { FilterPanel } from "../components/FilterPanel";
 import { BatchTaggingPanel } from "../components/BatchTaggingPanel";
 import { PageControls } from "../components/PageControls";
@@ -144,7 +149,42 @@ export function GalleryPage() {
   const handleIndexing = async () => {
     try {
       await triggerIndexing();
-    } catch (error) {}
+      alert(
+        "Indexing started in the background. Please refresh the page in a few moments.",
+      );
+    } catch (error) {
+      alert("Failed to start indexing");
+    }
+  };
+
+  const handleUpdateIndex = async () => {
+    try {
+      await triggerUpdateIndex();
+      alert(
+        "Index update started. Removed photos will be cleared from the database.",
+      );
+    } catch (error) {
+      alert("Failed to update index");
+    }
+  };
+
+  const handleResetIndex = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to reset the database and reindex? This will clear all existing photo records and tags.",
+      )
+    ) {
+      return;
+    }
+    try {
+      await resetAndReindex();
+      alert(
+        "Database reset. Full reindex started in the background. Please refresh the page in a few moments.",
+      );
+      setRefreshPhotos((v) => !v);
+    } catch (error) {
+      alert("Failed to reset and reindex");
+    }
   };
 
   const toggleFiltersPanel = () => {
@@ -168,6 +208,17 @@ export function GalleryPage() {
         <div>
           <h1>Go Tagger</h1>
           <p class="subtitle">Quickly preview photos and batch tag them.</p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button type="button" class="ghost" onClick={handleIndexing}>
+            Start Indexing
+          </button>
+          <button type="button" class="ghost" onClick={handleUpdateIndex}>
+            Update Index
+          </button>
+          <button type="button" class="ghost" onClick={handleResetIndex}>
+            Reset & Reindex
+          </button>
         </div>
       </header>
 

@@ -300,9 +300,8 @@ func IndexFiles() {
 			newPhotos = append(newPhotos, photo)
 			if len(newPhotos) >= 1000 {
 				result := db.DB.Clauses(clause.OnConflict{
-					// Check for conflict on file_path (the constraint that's failing)
-					Columns: []clause.Column{{Name: "file_path"}},
-					// If a conflict occurs, do nothing and continue to the next record
+					// Check for conflict on file_hash (the unique content identifier)
+					Columns:   []clause.Column{{Name: "file_hash"}},
 					DoNothing: true,
 				}).CreateInBatches(newPhotos, 1000)
 
@@ -327,8 +326,8 @@ func IndexFiles() {
 	if len(newPhotos) > 0 {
 		// Insert up to 1000 records at a time
 		result := db.DB.Clauses(clause.OnConflict{
-			// Check for conflict on file_path (the constraint that's failing)
-			Columns: []clause.Column{{Name: "file_path"}},
+			// Check for conflict on file_hash (the unique content identifier)
+			Columns: []clause.Column{{Name: "file_hash"}},
 			// If a conflict occurs, do nothing and continue to the next record
 			DoNothing: true,
 		}).CreateInBatches(newPhotos, len(newPhotos)) // Insert the remainder
@@ -340,10 +339,6 @@ func IndexFiles() {
 	} else {
 		log.Println("File system index complete. No new records found to insert.")
 	}
-
-	// This line is needed to re-index the map for the next run (though usually done on restart)
-	db.DB.Model(&models.Photo{}).Select("file_hash").Find(&existingHashes)
-
 }
 func UpdateIndexFiles() {
 	indexingRunning.Lock() // This blocks if another index is running.

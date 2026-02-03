@@ -17,7 +17,7 @@ export const fetchPhotos = async (
     afterDate?: string;
     afterTime?: string;
     untagged?: boolean;
-  }
+  },
 ): Promise<PhotosResponse> => {
   const params = new URLSearchParams({
     page: String(page),
@@ -67,23 +67,31 @@ export const triggerUpdateIndex = async (): Promise<void> => {
   }
 };
 
+export const resetAndReindex = async (): Promise<void> => {
+  const res = await fetch(`${API_BASE}/api/index`, { method: "DELETE" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to reset and reindex");
+  }
+};
+
 export const batchTagPhotos = async (
   photoIds: number[],
-  tags: string[]
+  tags: string[],
 ): Promise<void> => {
   await batchUpdatePhotoTags(photoIds, { add: tags });
 };
 
 export const batchTagPeople = async (
   photoIds: number[],
-  people: string[]
+  people: string[],
 ): Promise<void> => {
   await batchUpdatePhotoPeople(photoIds, { add: people });
 };
 
 export const batchUpdatePhotoTags = async (
   photoIds: number[],
-  changes: { add?: string[]; remove?: string[] }
+  changes: { add?: string[]; remove?: string[] },
 ): Promise<void> => {
   const add = (changes.add ?? []).map((t) => t.trim()).filter(Boolean);
   const remove = (changes.remove ?? []).map((t) => t.trim()).filter(Boolean);
@@ -106,7 +114,7 @@ export const batchUpdatePhotoTags = async (
 
 export const batchUpdatePhotoPeople = async (
   photoIds: number[],
-  changes: { add?: string[]; remove?: string[] }
+  changes: { add?: string[]; remove?: string[] },
 ): Promise<void> => {
   const add = (changes.add ?? []).map((p) => p.trim()).filter(Boolean);
   const remove = (changes.remove ?? []).map((p) => p.trim()).filter(Boolean);
@@ -130,7 +138,7 @@ export const batchUpdatePhotoPeople = async (
 export const getTagSuggestions = async (query: string): Promise<string[]> => {
   const params = new URLSearchParams({ q: query });
   const res = await fetch(
-    `${API_BASE}/api/tags/autocomplete?${params.toString()}`
+    `${API_BASE}/api/tags/autocomplete?${params.toString()}`,
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -149,11 +157,11 @@ export const getTopTags = async (): Promise<string[]> => {
 };
 
 export const getPeopleSuggestions = async (
-  query: string
+  query: string,
 ): Promise<string[]> => {
   const params = new URLSearchParams({ q: query });
   const res = await fetch(
-    `${API_BASE}/api/people/autocomplete?${params.toString()}`
+    `${API_BASE}/api/people/autocomplete?${params.toString()}`,
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

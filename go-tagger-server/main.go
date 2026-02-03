@@ -82,6 +82,7 @@ func main() {
 		api.DELETE("/photos", handlers.HandleDeletePhotos)
 		api.POST("/index", handlers.HandleIndexing)
 		api.PATCH("/index", handlers.HandleUpdateIndexing)
+		api.DELETE("/index", handlers.HandleResetIndex)
 		api.GET("/tags/autocomplete", handlers.HandleGetTagsAutoComplete)
 		api.GET("/tags", handlers.HandleGetTopTags)
 		api.GET("/people/autocomplete", handlers.HandleGetPeopleAutoComplete)
