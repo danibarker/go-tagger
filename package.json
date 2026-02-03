@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "install-server": "cd go-tagger-server && go mod tidy",
     "install-client": "cd go-tagger-client && npm install --no-bin-links",
-    "install": "nvm use 22 && npm run install-client && npm run install-server",
+    "install": "npm run install-client && npm run install-server",
     "server": "cd go-tagger-server && ./go-tagger",
     "build-client": "cd go-tagger-client && npm run build",
     "build-server": "cd go-tagger-server && go build .",
