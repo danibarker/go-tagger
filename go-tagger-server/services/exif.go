@@ -167,41 +167,48 @@ func ReadInitialMetadata(filePath string) (int, int, time.Time, []string, []stri
 		}
 	}
 
-	// Read existing tags from XMP:Subject
-	var tags []string
-	if subjectData, ok := data["Subject"]; ok {
-		// Subject can be a single string or an array of strings
-		switch v := subjectData.(type) {
-		case string:
-			if v != "" {
-				tags = []string{v}
-			}
-		case []interface{}:
-			for _, item := range v {
-				if str, ok := item.(string); ok && str != "" {
-					tags = append(tags, str)
-				}
-			}
-		}
-	}
-
-	// Read existing people from XMP:PersonInImage
-	var people []string
-	if personData, ok := data["PersonInImage"]; ok {
-		// PersonInImage can be a single string or an array of strings
-		switch v := personData.(type) {
-		case string:
-			if v != "" {
-				people = []string{v}
-			}
-		case []interface{}:
-			for _, item := range v {
-				if str, ok := item.(string); ok && str != "" {
-					people = append(people, str)
-				}
-			}
-		}
-	}
+	// Read existing tags and people from common XMP field names.
+	tags := readStringList(data, "Subject", "XMP:Subject", "XMP-dc:Subject")
+	people := readStringList(data, "PersonInImage", "XMP:PersonInImage", "XMP-iptcExt:PersonInImage")
 
 	return int(width), int(height), takenAt, tags, people
+}
+
+func readStringList(data map[string]interface{}, keys ...string) []string {
+	seen := make(map[string]struct{})
+	var results []string
+
+	add := func(value string) {
+		if value == "" {
+			return
+		}
+		if _, exists := seen[value]; exists {
+			return
+		}
+		seen[value] = struct{}{}
+		results = append(results, value)
+	}
+
+	for _, key := range keys {
+		raw, ok := data[key]
+		if !ok {
+			continue
+		}
+		switch v := raw.(type) {
+		case string:
+			add(v)
+		case []string:
+			for _, item := range v {
+				add(item)
+			}
+		case []interface{}:
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					add(str)
+				}
+			}
+		}
+	}
+
+	return results
 }
