@@ -3,6 +3,8 @@ package services
 import (
 	"go-tagger/models" // Import the Photo model
 	"log"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/barasher/go-exiftool"
@@ -23,6 +25,11 @@ func InitExifTool() {
 	log.Println("ExifTool service started successfully.")
 }
 
+func canWriteMetadata(filePath string) bool {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	return ext != ".webp"
+}
+
 // BulkWriteTags handles the core logic of writing tags to the physical files.
 // It receives a list of Photo records (which contain the FilePath).
 func BulkWriteTags(photos []models.Photo) error {
@@ -32,9 +39,15 @@ func BulkWriteTags(photos []models.Photo) error {
 	// Exiftool is most efficient when writing to multiple files at once.
 	// We iterate through our database photos and prepare the metadata for each.
 	for _, photo := range photos {
+		if !canWriteMetadata(photo.FilePath) {
+			continue
+		}
 		var tagNames []string
 		for _, tag := range photo.Tags {
 			tagNames = append(tagNames, tag.Name)
+		}
+		if len(tagNames) == 0 {
+			continue
 		}
 		fm := exiftool.EmptyFileMetadata()
 		fm.SetStrings("XMP:Subject", tagNames) // XMP:Subject is the industry standard for portable tags
@@ -60,9 +73,15 @@ func BulkWritePeople(photos []models.Photo) error {
 	var metadataList []exiftool.FileMetadata
 
 	for _, photo := range photos {
+		if !canWriteMetadata(photo.FilePath) {
+			continue
+		}
 		var peopleNames []string
 		for _, person := range photo.People {
 			peopleNames = append(peopleNames, person.Name)
+		}
+		if len(peopleNames) == 0 {
+			continue
 		}
 		fm := exiftool.EmptyFileMetadata()
 		// XMP:PersonInImage is the standard field for people/faces in images
@@ -86,6 +105,9 @@ func BulkWriteAllMetadata(photos []models.Photo) error {
 	var metadataList []exiftool.FileMetadata
 
 	for _, photo := range photos {
+		if !canWriteMetadata(photo.FilePath) {
+			continue
+		}
 		var tagNames []string
 		for _, tag := range photo.Tags {
 			tagNames = append(tagNames, tag.Name)
@@ -93,6 +115,9 @@ func BulkWriteAllMetadata(photos []models.Photo) error {
 		var peopleNames []string
 		for _, person := range photo.People {
 			peopleNames = append(peopleNames, person.Name)
+		}
+		if len(tagNames) == 0 && len(peopleNames) == 0 {
+			continue
 		}
 
 		fm := exiftool.EmptyFileMetadata()
