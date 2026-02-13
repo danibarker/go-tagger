@@ -277,14 +277,11 @@ func HandleSyncMetadataToFiles(c *gin.Context) {
 		return
 	}
 
-	// Run sync in background
-	go func(photos []models.Photo) {
-		if err := services.BulkWriteAllMetadata(photos); err != nil {
-			println("Error syncing metadata to files:", err.Error())
-		} else {
-			println("Successfully synced metadata to", len(photos), "files")
-		}
-	}(photos)
+	// Run sync synchronously to catch and return errors
+	if err := services.BulkWriteAllMetadata(photos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error writing metadata to files: " + err.Error()})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Metadata sync started in background.", "photos_to_sync": len(photos)})
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully synced metadata to files.", "photos_to_sync": len(photos)})
 }

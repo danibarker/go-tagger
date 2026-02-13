@@ -248,10 +248,14 @@ export function GalleryPage() {
     try {
       const result = await syncMetadataToFiles();
       alert(
-        `Syncing metadata to ${result.photos_to_sync} files. This will write all tags and people from the database to the actual image files.`,
+        `Successfully synced metadata to ${result.photos_to_sync} files. All tags and people from the database have been written to the actual image files.`,
       );
     } catch (error) {
-      alert("Failed to sync metadata to files");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to sync metadata to files";
+      alert(`Error: ${errorMessage}`);
     }
   };
 
