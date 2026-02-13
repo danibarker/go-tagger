@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // HandleBatchTagging processes the bulk tagging request from the frontend.
@@ -265,23 +266,33 @@ func HandleSetPerfMonitoring(c *gin.Context) {
 
 // HandleSyncMetadataToFiles writes all existing tags and people from database to actual files
 func HandleSyncMetadataToFiles(c *gin.Context) {
-	// Fetch all photos with their tags and people
-	var photos []models.Photo
-	if err := db.DB.Preload("Tags").Preload("People").Find(&photos).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching photos."})
+	var total int64
+	if err := db.DB.Model(&models.Photo{}).Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while counting photos."})
 		return
 	}
 
-	if len(photos) == 0 {
+	if total == 0 {
 		c.JSON(http.StatusOK, gin.H{"message": "No photos to sync.", "photos_synced": 0})
 		return
 	}
 
-	// Run sync synchronously to catch and return errors
-	if err := services.BulkWriteAllMetadata(photos); err != nil {
+	const batchSize = 500
+	processed := 0
+	var batchPhotos []models.Photo
+
+	err := db.DB.Preload("Tags").Preload("People").FindInBatches(&batchPhotos, batchSize, func(tx *gorm.DB, batch int) error {
+		if err := services.BulkWriteAllMetadata(batchPhotos); err != nil {
+			return err
+		}
+		processed += len(batchPhotos)
+		return nil
+	}).Error
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error writing metadata to files: " + err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Successfully synced metadata to files.", "photos_to_sync": len(photos)})
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully synced metadata to files.", "photos_to_sync": processed})
 }
