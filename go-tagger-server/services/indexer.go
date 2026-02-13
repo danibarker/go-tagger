@@ -277,6 +277,7 @@ func IndexFiles() {
 	}
 	photoMetadataMap := make(map[string]photoMetadata)
 	var metadataMutex sync.Mutex
+	var metadataSampleCount int64
 
 	// 1. Fetch all existing hashes into a simple string slice
 	var existingHashesSlice []string
@@ -357,6 +358,22 @@ func IndexFiles() {
 
 				// Store metadata for later association
 				if len(tags) > 0 || len(people) > 0 {
+					if atomic.AddInt64(&metadataSampleCount, 1) <= 10 {
+						maxItems := 10
+						tagsSample := tags
+						peopleSample := people
+						truncatedTags := false
+						truncatedPeople := false
+						if len(tags) > maxItems {
+							tagsSample = tags[:maxItems]
+							truncatedTags = true
+						}
+						if len(people) > maxItems {
+							peopleSample = people[:maxItems]
+							truncatedPeople = true
+						}
+						log.Printf("Metadata sample: %s (tags=%d, people=%d, tagsSample=%v, peopleSample=%v, truncatedTags=%t, truncatedPeople=%t)", job.path, len(tags), len(people), tagsSample, peopleSample, truncatedTags, truncatedPeople)
+					}
 					metadataMutex.Lock()
 					photoMetadataMap[hash] = photoMetadata{tags: tags, people: people}
 					metadataMutex.Unlock()
@@ -484,6 +501,7 @@ func IndexFiles() {
 		// Query photos by hash to get their IDs
 		var photosWithMetadata []models.Photo
 		db.DB.Where("file_hash IN ?", hashesWithMetadata).Find(&photosWithMetadata)
+		log.Printf("Metadata import: loaded %d photos for %d hashes.", len(photosWithMetadata), len(hashesWithMetadata))
 
 		// Create a map of hash -> photo ID for quick lookup
 		hashToPhotoID := make(map[string]uint)
@@ -503,6 +521,7 @@ func IndexFiles() {
 			}
 		}
 
+		log.Printf("Metadata import: unique tags=%d, people=%d", len(tagSet), len(peopleSet))
 		// Find or create all tags
 		tagNameToID := make(map[string]uint)
 		for tagName := range tagSet {
@@ -523,20 +542,27 @@ func IndexFiles() {
 		for hash, metadata := range photoMetadataMap {
 			photoID, exists := hashToPhotoID[hash]
 			if !exists {
+				log.Printf("Metadata import: photo hash not found in DB: %s", hash)
 				continue
 			}
 
 			// Associate tags
 			for _, tagName := range metadata.tags {
 				tagID := tagNameToID[tagName]
-				// Use raw SQL to avoid duplicate key errors
-				db.DB.Exec("INSERT OR IGNORE INTO photo_tags (photo_id, tag_id) VALUES (?, ?)", photoID, tagID)
+				// PostgreSQL-compatible upsert to avoid duplicate key errors
+				result := db.DB.Exec("INSERT INTO photo_tags (photo_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", photoID, tagID)
+				if result.Error != nil {
+					log.Printf("Failed to link tag '%s' to photo %d: %v", tagName, photoID, result.Error)
+				}
 			}
 
 			// Associate people
 			for _, personName := range metadata.people {
 				personID := personNameToID[personName]
-				db.DB.Exec("INSERT OR IGNORE INTO photo_people (photo_id, person_id) VALUES (?, ?)", photoID, personID)
+				result := db.DB.Exec("INSERT INTO photo_people (photo_id, person_id) VALUES (?, ?) ON CONFLICT DO NOTHING", photoID, personID)
+				if result.Error != nil {
+					log.Printf("Failed to link person '%s' to photo %d: %v", personName, photoID, result.Error)
+				}
 			}
 		}
 

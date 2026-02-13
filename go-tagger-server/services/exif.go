@@ -146,7 +146,11 @@ func ReadInitialMetadata(filePath string) (int, int, time.Time, []string, []stri
 	// Corrected: Use ExtractMetadata to read metadata for the specified file
 	fileMetadata := Et.ExtractMetadata(filePath)
 
-	if len(fileMetadata) == 0 || fileMetadata[0].Err != nil {
+	if len(fileMetadata) == 0 {
+		log.Printf("Error reading metadata for %s: no metadata returned", filePath)
+		return 0, 0, time.Time{}, nil, nil
+	}
+	if fileMetadata[0].Err != nil {
 		log.Printf("Error reading metadata for %s: %v", filePath, fileMetadata[0].Err)
 		return 0, 0, time.Time{}, nil, nil
 	}

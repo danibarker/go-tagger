@@ -28,7 +28,7 @@ func Init() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Automatically migrate the Photo struct to create/update the table
-	DB.AutoMigrate(&models.Photo{})
+	// Automatically migrate core models and join tables
+	DB.AutoMigrate(&models.Photo{}, &models.Tag{}, &models.Person{})
 	log.Println("Database connection successful and schema migrated.")
 }
