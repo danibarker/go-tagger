@@ -215,3 +215,19 @@ export const setPerfMonitoring = async (enabled: boolean): Promise<void> => {
     throw new Error(body.error ?? "Failed to set performance monitoring");
   }
 };
+
+export const syncMetadataToFiles = async (): Promise<{
+  message: string;
+  photos_to_sync: number;
+}> => {
+  const res = await fetch(`${API_BASE}/api/sync-metadata`, {
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to sync metadata to files");
+  }
+
+  return (await res.json()) as { message: string; photos_to_sync: number };
+};

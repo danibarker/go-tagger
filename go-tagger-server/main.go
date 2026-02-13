@@ -83,6 +83,7 @@ func main() {
 		api.POST("/index", handlers.HandleIndexing)
 		api.PATCH("/index", handlers.HandleUpdateIndexing)
 		api.DELETE("/index", handlers.HandleResetIndex)
+		api.POST("/sync-metadata", handlers.HandleSyncMetadataToFiles)
 		api.GET("/perf-monitoring", handlers.HandleGetPerfMonitoring)
 		api.POST("/perf-monitoring", handlers.HandleSetPerfMonitoring)
 		api.GET("/tags/autocomplete", handlers.HandleGetTagsAutoComplete)

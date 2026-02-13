@@ -6,6 +6,7 @@ interface AppHeaderProps {
   onIndexing: () => void;
   onUpdateIndex: () => void;
   onResetIndex: () => void;
+  onSyncMetadata?: () => void;
 }
 
 export function AppHeader(props: AppHeaderProps) {
@@ -25,6 +26,11 @@ export function AppHeader(props: AppHeaderProps) {
         <button type="button" class="ghost" onClick={props.onResetIndex}>
           Reset & Reindex
         </button>
+        {props.onSyncMetadata && (
+          <button type="button" class="ghost" onClick={props.onSyncMetadata}>
+            Sync Metadata to Files
+          </button>
+        )}
         <label
           style={{
             display: "flex",

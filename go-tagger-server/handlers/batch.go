@@ -179,6 +179,20 @@ func HandleBatchPeopleTagging(c *gin.Context) {
 		updated++
 	}
 
+	// fetch updated records for file writing
+	var updatedPhotos []models.Photo
+	if err := db.DB.Preload("People").Where("id IN ?", input.PhotoIDs).Find(&updatedPhotos).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching updated photos."})
+		return
+	}
+
+	// Write people to files asynchronously
+	go func(photos []models.Photo) {
+		if err := services.BulkWritePeople(photos); err != nil {
+			println("Error writing people to files:", err.Error())
+		}
+	}(updatedPhotos)
+
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully updated people for selected photos.", "photos_updated": updated})
 }
 
@@ -247,4 +261,30 @@ func HandleSetPerfMonitoring(c *gin.Context) {
 	}
 	services.EnablePerfMonitoring = input.Enabled
 	c.JSON(http.StatusOK, gin.H{"message": "Performance monitoring updated.", "enabled": services.EnablePerfMonitoring})
+}
+
+// HandleSyncMetadataToFiles writes all existing tags and people from database to actual files
+func HandleSyncMetadataToFiles(c *gin.Context) {
+	// Fetch all photos with their tags and people
+	var photos []models.Photo
+	if err := db.DB.Preload("Tags").Preload("People").Find(&photos).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching photos."})
+		return
+	}
+
+	if len(photos) == 0 {
+		c.JSON(http.StatusOK, gin.H{"message": "No photos to sync.", "photos_synced": 0})
+		return
+	}
+
+	// Run sync in background
+	go func(photos []models.Photo) {
+		if err := services.BulkWriteAllMetadata(photos); err != nil {
+			println("Error syncing metadata to files:", err.Error())
+		} else {
+			println("Successfully synced metadata to", len(photos), "files")
+		}
+	}(photos)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Metadata sync started in background.", "photos_to_sync": len(photos)})
 }

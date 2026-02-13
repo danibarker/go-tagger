@@ -7,6 +7,7 @@ import {
   deletePhotos,
   getPerfMonitoring,
   setPerfMonitoring,
+  syncMetadataToFiles,
 } from "../api";
 import { FilterPanel } from "../components/FilterPanel";
 import { BatchTaggingPanel } from "../components/BatchTaggingPanel";
@@ -243,6 +244,17 @@ export function GalleryPage() {
     }
   };
 
+  const handleSyncMetadata = async () => {
+    try {
+      const result = await syncMetadataToFiles();
+      alert(
+        `Syncing metadata to ${result.photos_to_sync} files. This will write all tags and people from the database to the actual image files.`,
+      );
+    } catch (error) {
+      alert("Failed to sync metadata to files");
+    }
+  };
+
   const toggleFiltersPanel = () => {
     const panel = document.getElementById("filters-panel");
     if (panel) {
@@ -266,6 +278,7 @@ export function GalleryPage() {
         onIndexing={handleIndexing}
         onUpdateIndex={handleUpdateIndex}
         onResetIndex={handleResetIndex}
+        onSyncMetadata={handleSyncMetadata}
       />
 
       <FilterPanel

@@ -55,10 +55,67 @@ func BulkWriteTags(photos []models.Photo) error {
 	return nil
 }
 
-func ReadInitialMetadata(filePath string) (int, int, time.Time) {
+// BulkWritePeople handles writing people metadata to the physical files.
+func BulkWritePeople(photos []models.Photo) error {
+	var metadataList []exiftool.FileMetadata
+
+	for _, photo := range photos {
+		var peopleNames []string
+		for _, person := range photo.People {
+			peopleNames = append(peopleNames, person.Name)
+		}
+		fm := exiftool.EmptyFileMetadata()
+		// XMP:PersonInImage is the standard field for people/faces in images
+		fm.SetStrings("XMP:PersonInImage", peopleNames)
+		fm.File = photo.FilePath
+		metadataList = append(metadataList, fm)
+	}
+
+	Et.WriteMetadata(metadataList)
+
+	for _, fileInfo := range metadataList {
+		if fileInfo.Err != nil {
+			log.Printf("Error writing people metadata to %s: %v", fileInfo.File, fileInfo.Err)
+		}
+	}
+	return nil
+}
+
+// BulkWriteAllMetadata writes both tags and people to files
+func BulkWriteAllMetadata(photos []models.Photo) error {
+	var metadataList []exiftool.FileMetadata
+
+	for _, photo := range photos {
+		var tagNames []string
+		for _, tag := range photo.Tags {
+			tagNames = append(tagNames, tag.Name)
+		}
+		var peopleNames []string
+		for _, person := range photo.People {
+			peopleNames = append(peopleNames, person.Name)
+		}
+
+		fm := exiftool.EmptyFileMetadata()
+		fm.SetStrings("XMP:Subject", tagNames)
+		fm.SetStrings("XMP:PersonInImage", peopleNames)
+		fm.File = photo.FilePath
+		metadataList = append(metadataList, fm)
+	}
+
+	Et.WriteMetadata(metadataList)
+
+	for _, fileInfo := range metadataList {
+		if fileInfo.Err != nil {
+			log.Printf("Error writing metadata to %s: %v", fileInfo.File, fileInfo.Err)
+		}
+	}
+	return nil
+}
+
+func ReadInitialMetadata(filePath string) (int, int, time.Time, []string, []string) {
 	if Et == nil {
 		log.Println("ExifTool not initialized. Returning defaults.")
-		return 0, 0, time.Time{}
+		return 0, 0, time.Time{}, nil, nil
 	}
 
 	// Corrected: Use ExtractMetadata to read metadata for the specified file
@@ -66,7 +123,7 @@ func ReadInitialMetadata(filePath string) (int, int, time.Time) {
 
 	if len(fileMetadata) == 0 || fileMetadata[0].Err != nil {
 		log.Printf("Error reading metadata for %s: %v", filePath, fileMetadata[0].Err)
-		return 0, 0, time.Time{}
+		return 0, 0, time.Time{}, nil, nil
 	}
 
 	data := fileMetadata[0].Fields
@@ -85,5 +142,41 @@ func ReadInitialMetadata(filePath string) (int, int, time.Time) {
 		}
 	}
 
-	return int(width), int(height), takenAt
+	// Read existing tags from XMP:Subject
+	var tags []string
+	if subjectData, ok := data["Subject"]; ok {
+		// Subject can be a single string or an array of strings
+		switch v := subjectData.(type) {
+		case string:
+			if v != "" {
+				tags = []string{v}
+			}
+		case []interface{}:
+			for _, item := range v {
+				if str, ok := item.(string); ok && str != "" {
+					tags = append(tags, str)
+				}
+			}
+		}
+	}
+
+	// Read existing people from XMP:PersonInImage
+	var people []string
+	if personData, ok := data["PersonInImage"]; ok {
+		// PersonInImage can be a single string or an array of strings
+		switch v := personData.(type) {
+		case string:
+			if v != "" {
+				people = []string{v}
+			}
+		case []interface{}:
+			for _, item := range v {
+				if str, ok := item.(string); ok && str != "" {
+					people = append(people, str)
+				}
+			}
+		}
+	}
+
+	return int(width), int(height), takenAt, tags, people
 }

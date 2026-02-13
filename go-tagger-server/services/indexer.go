@@ -211,7 +211,7 @@ func OldIndexFiles() {
 				log.Printf("Skipping file %s: Could not calculate hash: %v", path, err)
 				return nil // Skip this file, but continue walking
 			}
-			width, height, takenAt := ReadInitialMetadata(path)
+			width, height, takenAt, _, _ := ReadInitialMetadata(path)
 
 			// fileType determination
 			fileType := "unknown"
@@ -269,6 +269,14 @@ func IndexFiles() {
 	processedCount := 0
 	skippedCount := 0
 	var counterMutex sync.Mutex
+
+	// Store metadata for newly indexed photos (hash -> {tags, people})
+	type photoMetadata struct {
+		tags   []string
+		people []string
+	}
+	photoMetadataMap := make(map[string]photoMetadata)
+	var metadataMutex sync.Mutex
 
 	// 1. Fetch all existing hashes into a simple string slice
 	var existingHashesSlice []string
@@ -342,9 +350,16 @@ func IndexFiles() {
 
 				// Measure metadata reading time
 				metaStart := time.Now()
-				width, height, takenAt := ReadInitialMetadata(job.path)
+				width, height, takenAt, tags, people := ReadInitialMetadata(job.path)
 				if EnablePerfMonitoring {
 					atomic.AddInt64(&perfMetadataTime, int64(time.Since(metaStart)))
+				}
+
+				// Store metadata for later association
+				if len(tags) > 0 || len(people) > 0 {
+					metadataMutex.Lock()
+					photoMetadataMap[hash] = photoMetadata{tags: tags, people: people}
+					metadataMutex.Unlock()
 				}
 
 				fileType := "unknown"
@@ -454,6 +469,78 @@ func IndexFiles() {
 		log.Printf("File system index complete. Inserted %d new records. Total processed: %d, Skipped: %d", result.RowsAffected, processedCount, skippedCount)
 	} else {
 		log.Printf("File system index complete. No new records found to insert. Total processed: %d, All skipped: %d", processedCount, skippedCount)
+	}
+
+	// --- 6. IMPORT EXISTING METADATA (TAGS AND PEOPLE) ---
+	if len(photoMetadataMap) > 0 {
+		log.Printf("Importing existing metadata for %d photos...", len(photoMetadataMap))
+
+		// Collect all hashes that have metadata
+		var hashesWithMetadata []string
+		for hash := range photoMetadataMap {
+			hashesWithMetadata = append(hashesWithMetadata, hash)
+		}
+
+		// Query photos by hash to get their IDs
+		var photosWithMetadata []models.Photo
+		db.DB.Where("file_hash IN ?", hashesWithMetadata).Find(&photosWithMetadata)
+
+		// Create a map of hash -> photo ID for quick lookup
+		hashToPhotoID := make(map[string]uint)
+		for _, photo := range photosWithMetadata {
+			hashToPhotoID[photo.FileHash] = photo.ID
+		}
+
+		// Collect all unique tag and people names
+		tagSet := make(map[string]bool)
+		peopleSet := make(map[string]bool)
+		for _, metadata := range photoMetadataMap {
+			for _, tag := range metadata.tags {
+				tagSet[tag] = true
+			}
+			for _, person := range metadata.people {
+				peopleSet[person] = true
+			}
+		}
+
+		// Find or create all tags
+		tagNameToID := make(map[string]uint)
+		for tagName := range tagSet {
+			var tag models.Tag
+			db.DB.FirstOrCreate(&tag, models.Tag{Name: tagName})
+			tagNameToID[tagName] = tag.ID
+		}
+
+		// Find or create all people
+		personNameToID := make(map[string]uint)
+		for personName := range peopleSet {
+			var person models.Person
+			db.DB.FirstOrCreate(&person, models.Person{Name: personName})
+			personNameToID[personName] = person.ID
+		}
+
+		// Create associations
+		for hash, metadata := range photoMetadataMap {
+			photoID, exists := hashToPhotoID[hash]
+			if !exists {
+				continue
+			}
+
+			// Associate tags
+			for _, tagName := range metadata.tags {
+				tagID := tagNameToID[tagName]
+				// Use raw SQL to avoid duplicate key errors
+				db.DB.Exec("INSERT OR IGNORE INTO photo_tags (photo_id, tag_id) VALUES (?, ?)", photoID, tagID)
+			}
+
+			// Associate people
+			for _, personName := range metadata.people {
+				personID := personNameToID[personName]
+				db.DB.Exec("INSERT OR IGNORE INTO photo_people (photo_id, person_id) VALUES (?, ?)", photoID, personID)
+			}
+		}
+
+		log.Printf("Metadata import complete. Processed %d tags and %d people.", len(tagSet), len(peopleSet))
 	}
 }
 func UpdateIndexFiles() {
