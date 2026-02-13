@@ -4,8 +4,10 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
 type PhotoCardProps = {
   photo: Photo;
+  index: number;
   isSelected: () => boolean;
   onToggleSelection: (id: number) => void;
+  onPhotoClick: (id: number, index: number, shiftKey: boolean) => void;
   currentPage: number;
   onDelete?: (id: number) => void;
 };
@@ -64,7 +66,7 @@ export function PhotoCard(props: PhotoCardProps) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          props.onToggleSelection(props.photo.ID);
+          props.onPhotoClick(props.photo.ID, props.index, e.shiftKey);
         }}
       >
         <input type="checkbox" readOnly checked={props.isSelected()} />

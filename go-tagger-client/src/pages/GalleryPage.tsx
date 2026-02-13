@@ -12,6 +12,8 @@ import { FilterPanel } from "../components/FilterPanel";
 import { BatchTaggingPanel } from "../components/BatchTaggingPanel";
 import { PageControls } from "../components/PageControls";
 import { PhotoViewerModal } from "./PhotoViewerModal";
+import { AppHeader } from "../components/AppHeader";
+import { GalleryControls } from "../components/GalleryControls";
 
 export function GalleryPage() {
   console.log("GalleryPage mounted!");
@@ -98,6 +100,9 @@ export function GalleryPage() {
   const [tagInput, setTagInput] = createSignal("");
   const [peopleInput, setPeopleInput] = createSignal("");
   const [selectedIds, setSelectedIds] = createSignal<Set<number>>(new Set());
+  const [lastClickedIndex, setLastClickedIndex] = createSignal<number | null>(
+    null,
+  );
   const [showFilterPanel, setShowFilterPanel] = createSignal(false);
   const [showBatchPanel, setShowBatchPanel] = createSignal(false);
   const [perfMonitoring, setPerfMonitoringState] = createSignal(true);
@@ -115,6 +120,35 @@ export function GalleryPage() {
       } else {
         next.add(id);
       }
+      return next;
+    });
+  };
+
+  const handlePhotoClick = (id: number, index: number, shiftKey: boolean) => {
+    if (shiftKey && lastClickedIndex() !== null) {
+      // Shift-click: select range
+      const start = Math.min(lastClickedIndex()!, index);
+      const end = Math.max(lastClickedIndex()!, index);
+      const rangeIds = photos()
+        .slice(start, end + 1)
+        .map((p) => p.ID);
+
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        rangeIds.forEach((id) => next.add(id));
+        return next;
+      });
+    } else {
+      // Regular click: toggle
+      toggleSelection(id);
+    }
+    setLastClickedIndex(index);
+  };
+
+  const selectMultiple = (ids: number[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
       return next;
     });
   };
@@ -226,39 +260,13 @@ export function GalleryPage() {
 
   return (
     <main class="app-shell">
-      <header class="app-shell__header">
-        <div>
-          <h1>Go Tagger</h1>
-          <p class="subtitle">Quickly preview photos and batch tag them.</p>
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button type="button" class="ghost" onClick={handleIndexing}>
-            Start Indexing
-          </button>
-          <button type="button" class="ghost" onClick={handleUpdateIndex}>
-            Update Index
-          </button>
-          <button type="button" class="ghost" onClick={handleResetIndex}>
-            Reset & Reindex
-          </button>
-          <label
-            style={{
-              display: "flex",
-              "align-items": "center",
-              gap: "0.25rem",
-              cursor: "pointer",
-              "margin-left": "1rem",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={perfMonitoring()}
-              onChange={handleTogglePerfMonitoring}
-            />
-            <span>Performance Monitoring</span>
-          </label>
-        </div>
-      </header>
+      <AppHeader
+        perfMonitoring={perfMonitoring}
+        onTogglePerfMonitoring={handleTogglePerfMonitoring}
+        onIndexing={handleIndexing}
+        onUpdateIndex={handleUpdateIndex}
+        onResetIndex={handleResetIndex}
+      />
 
       <FilterPanel
         showFilterPanel={showFilterPanel}
@@ -302,45 +310,18 @@ export function GalleryPage() {
           }
         >
           <div style={{ position: "relative" }}>
-            <div
-              style={{
-                position: "absolute",
-                top: "-2.5rem",
-                right: 0,
-                display: "flex",
-                gap: "0.5rem",
-                "z-index": 10,
-              }}
-            >
-              <button type="button" class="ghost" onClick={toggleSelectAll}>
-                {photos().length > 0 &&
-                photos().every((p) => selectedIds().has(p.ID))
-                  ? "Unselect All"
-                  : "Select All"}
-              </button>
-              {selectedIds().size > 0 && (
-                <button
-                  type="button"
-                  onClick={handleBatchDelete}
-                  style={{
-                    background: "#fff",
-                    color: "#c00",
-                    border: "1px solid #c00",
-                    "border-radius": "999px",
-                    padding: "0.25rem 1rem",
-                    "font-weight": 700,
-                    cursor: "pointer",
-                    "font-size": "0.95em",
-                  }}
-                >
-                  Delete Selected ×
-                </button>
-              )}
-            </div>
+            <GalleryControls
+              photos={photos()}
+              selectedIds={selectedIds}
+              onToggleSelectAll={toggleSelectAll}
+              onBatchDelete={handleBatchDelete}
+            />
             <Gallery
               photos={photos()}
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
+              onPhotoClick={handlePhotoClick}
+              onSelectMultiple={selectMultiple}
               isLoading={photosLoading()}
               currentPage={currentPage()}
               onDeletePhoto={handleDeletePhoto}

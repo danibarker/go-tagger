@@ -8,6 +8,9 @@ import {
   batchUpdatePhotoTags,
   batchUpdatePhotoPeople,
 } from "../api";
+import { AutocompleteInput } from "./AutocompleteInput";
+
+import type { Setter } from "solid-js";
 
 interface BatchTaggingPanelProps {
   toggleBatchPanel: () => void;
@@ -16,9 +19,9 @@ interface BatchTaggingPanelProps {
   selectedPhotos: () => Photo[];
   onUpdated: () => void;
   tagInput: () => string;
-  setTagInput: (val: string) => void;
+  setTagInput: Setter<string>;
   peopleInput: () => string;
-  setPeopleInput: (val: string) => void;
+  setPeopleInput: Setter<string>;
   children?: any;
 }
 
@@ -26,13 +29,6 @@ type TriState = "none" | "some" | "all";
 type OverrideState = "none" | "all";
 
 export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
-  // Autocomplete state
-  const [tagSuggestions, setTagSuggestions] = createSignal<string[]>([]);
-  const [showTagDropdown, setShowTagDropdown] = createSignal(false);
-  const [selectedTagIndex, setSelectedTagIndex] = createSignal(-1);
-  const [peopleSuggestions, setPeopleSuggestions] = createSignal<string[]>([]);
-  const [showPeopleDropdown, setShowPeopleDropdown] = createSignal(false);
-  const [selectedPersonIndex, setSelectedPersonIndex] = createSignal(-1);
   // Top tags/people state
   const [topTags, setTopTags] = createSignal<string[]>([]);
   const [topPeople, setTopPeople] = createSignal<string[]>([]);
@@ -77,7 +73,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
   const baseStateFor = (
     counts: Map<string, number>,
     name: string,
-    total: number
+    total: number,
   ): TriState => {
     if (total <= 0) return "none";
     const count = counts.get(name) ?? 0;
@@ -88,7 +84,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
 
   const visualStateFor = (
     base: TriState,
-    override: OverrideState | undefined
+    override: OverrideState | undefined,
   ): TriState => {
     if (override === "all") return "all";
     if (override === "none") return "none";
@@ -105,7 +101,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
     name: string,
     currentVisual: TriState,
     setOverrides: (next: Map<string, OverrideState>) => void,
-    overrides: Map<string, OverrideState>
+    overrides: Map<string, OverrideState>,
   ) => {
     const next = new Map(overrides);
     if (currentVisual === "all") {
@@ -138,28 +134,6 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
     setPeopleOverrides(new Map());
   });
 
-  const acceptTagSuggestion = (suggestion: string) => {
-    const current = props.tagInput();
-    const tagsArr = current
-      ? current.split(",").map((t: string) => t.trim())
-      : [];
-    tagsArr[tagsArr.length - 1] = suggestion;
-    props.setTagInput(tagsArr.filter(Boolean).join(", "));
-    setShowTagDropdown(false);
-    setSelectedTagIndex(-1);
-  };
-
-  const acceptPersonSuggestion = (suggestion: string) => {
-    const current = props.peopleInput();
-    const peopleArr = current
-      ? current.split(",").map((p: string) => p.trim())
-      : [];
-    peopleArr[peopleArr.length - 1] = suggestion;
-    props.setPeopleInput(peopleArr.filter(Boolean).join(", "));
-    setShowPeopleDropdown(false);
-    setSelectedPersonIndex(-1);
-  };
-
   const handleUpdateTags = async () => {
     const ids = props.selectedPhotoIds();
     if (!ids.length) {
@@ -175,14 +149,14 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
         ...Array.from(overrides.entries())
           .filter(([, v]) => v === "all")
           .map(([k]) => k),
-      ])
+      ]),
     );
     const remove = Array.from(
       new Set(
         Array.from(overrides.entries())
           .filter(([, v]) => v === "none")
-          .map(([k]) => k)
-      )
+          .map(([k]) => k),
+      ),
     );
 
     if (!add.length && !remove.length) {
@@ -215,14 +189,14 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
         ...Array.from(overrides.entries())
           .filter(([, v]) => v === "all")
           .map(([k]) => k),
-      ])
+      ]),
     );
     const remove = Array.from(
       new Set(
         Array.from(overrides.entries())
           .filter(([, v]) => v === "none")
-          .map(([k]) => k)
-      )
+          .map(([k]) => k),
+      ),
     );
 
     if (!add.length && !remove.length) {
@@ -256,79 +230,13 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
       <div class="tag-form">
         <div class="field-group">
           <label for="batch-tag-input">Tags (comma-separated)</label>
-          <div class="autocomplete-wrapper">
-            <input
-              id="batch-tag-input"
-              type="text"
-              placeholder="beach, sunset, vacation"
-              value={props.tagInput()}
-              onInput={async (event) => {
-                const value = event.currentTarget.value;
-                props.setTagInput(value);
-                setSelectedTagIndex(-1);
-                if (value.trim()) {
-                  const last = value.split(",").pop()?.trim() ?? "";
-                  if (last) {
-                    setTagSuggestions(await getTagSuggestions(last));
-                    setShowTagDropdown(true);
-                  } else {
-                    setShowTagDropdown(false);
-                  }
-                } else {
-                  setShowTagDropdown(false);
-                }
-              }}
-              onKeyDown={(event) => {
-                if (!showTagDropdown() || tagSuggestions().length === 0) return;
-
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  setSelectedTagIndex((prev) =>
-                    prev < tagSuggestions().length - 1 ? prev + 1 : prev
-                  );
-                } else if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  setSelectedTagIndex((prev) => (prev > 0 ? prev - 1 : -1));
-                } else if (event.key === "Enter" || event.key === "Tab") {
-                  const idx = selectedTagIndex();
-                  if (idx >= 0 && idx < tagSuggestions().length) {
-                    event.preventDefault();
-                    acceptTagSuggestion(tagSuggestions()[idx]);
-                  }
-                } else if (event.key === "Escape") {
-                  setShowTagDropdown(false);
-                  setSelectedTagIndex(-1);
-                }
-              }}
-              onBlur={() => setTimeout(() => setShowTagDropdown(false), 150)}
-              onFocus={async (event) => {
-                const value = event.currentTarget.value;
-                if (value.trim()) {
-                  const last = value.split(",").pop()?.trim() ?? "";
-                  if (last) {
-                    setTagSuggestions(await getTagSuggestions(last));
-                    setShowTagDropdown(true);
-                  }
-                }
-              }}
-              autocomplete="off"
-            />
-            {showTagDropdown() && tagSuggestions().length > 0 && (
-              <div class="autocomplete-dropdown">
-                {tagSuggestions().map((suggestion: string, index: number) => (
-                  <div
-                    class={`autocomplete-item ${
-                      selectedTagIndex() === index ? "selected" : ""
-                    }`}
-                    onMouseDown={() => acceptTagSuggestion(suggestion)}
-                    onMouseEnter={() => setSelectedTagIndex(index)}
-                  >
-                    {suggestion}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <AutocompleteInput
+            id="batch-tag-input"
+            placeholder="beach, sunset, vacation"
+            value={props.tagInput}
+            onValueChange={props.setTagInput}
+            getSuggestions={getTagSuggestions}
+          />
           <div
             style={{
               display: "flex",
@@ -351,15 +259,15 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
                       tag,
                       visual,
                       setTagOverrides,
-                      tagOverrides()
+                      tagOverrides(),
                     );
                   }}
                   title={
                     base === "all"
                       ? "On all selected"
                       : base === "some"
-                      ? "On some selected"
-                      : "Not on selected"
+                        ? "On some selected"
+                        : "Not on selected"
                   }
                 >
                   {tag}
@@ -370,82 +278,13 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
         </div>
         <div class="field-group">
           <label for="batch-people-input">People (comma-separated)</label>
-          <div class="autocomplete-wrapper">
-            <input
-              id="batch-people-input"
-              type="text"
-              placeholder="John, Mary"
-              value={props.peopleInput()}
-              onInput={async (event) => {
-                const value = event.currentTarget.value;
-                props.setPeopleInput(value);
-                setSelectedPersonIndex(-1);
-                if (value.trim()) {
-                  const last = value.split(",").pop()?.trim() ?? "";
-                  if (last) {
-                    setPeopleSuggestions(await getPeopleSuggestions(last));
-                    setShowPeopleDropdown(true);
-                  } else {
-                    setShowPeopleDropdown(false);
-                  }
-                } else {
-                  setShowPeopleDropdown(false);
-                }
-              }}
-              onKeyDown={(event) => {
-                if (!showPeopleDropdown() || peopleSuggestions().length === 0)
-                  return;
-
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  setSelectedPersonIndex((prev) =>
-                    prev < peopleSuggestions().length - 1 ? prev + 1 : prev
-                  );
-                } else if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  setSelectedPersonIndex((prev) => (prev > 0 ? prev - 1 : -1));
-                } else if (event.key === "Enter" || event.key === "Tab") {
-                  const idx = selectedPersonIndex();
-                  if (idx >= 0 && idx < peopleSuggestions().length) {
-                    event.preventDefault();
-                    acceptPersonSuggestion(peopleSuggestions()[idx]);
-                  }
-                } else if (event.key === "Escape") {
-                  setShowPeopleDropdown(false);
-                  setSelectedPersonIndex(-1);
-                }
-              }}
-              onBlur={() => setTimeout(() => setShowPeopleDropdown(false), 150)}
-              onFocus={async (event) => {
-                const value = event.currentTarget.value;
-                if (value.trim()) {
-                  const last = value.split(",").pop()?.trim() ?? "";
-                  if (last) {
-                    setPeopleSuggestions(await getPeopleSuggestions(last));
-                    setShowPeopleDropdown(true);
-                  }
-                }
-              }}
-              autocomplete="off"
-            />
-            {showPeopleDropdown() && peopleSuggestions().length > 0 && (
-              <div class="autocomplete-dropdown">
-                {peopleSuggestions().map(
-                  (suggestion: string, index: number) => (
-                    <div
-                      class={`autocomplete-item ${
-                        selectedPersonIndex() === index ? "selected" : ""
-                      }`}
-                      onMouseDown={() => acceptPersonSuggestion(suggestion)}
-                      onMouseEnter={() => setSelectedPersonIndex(index)}
-                    >
-                      {suggestion}
-                    </div>
-                  )
-                )}
-              </div>
-            )}
-          </div>
+          <AutocompleteInput
+            id="batch-people-input"
+            placeholder="John, Mary"
+            value={props.peopleInput}
+            onValueChange={props.setPeopleInput}
+            getSuggestions={getPeopleSuggestions}
+          />
           <div
             style={{
               display: "flex",
@@ -458,7 +297,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
               const base = baseStateFor(
                 peopleCounts(),
                 person,
-                selectedTotal()
+                selectedTotal(),
               );
               const override = peopleOverrides().get(person);
               const visual = visualStateFor(base, override);
@@ -472,15 +311,15 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
                       person,
                       visual,
                       setPeopleOverrides,
-                      peopleOverrides()
+                      peopleOverrides(),
                     );
                   }}
                   title={
                     base === "all"
                       ? "On all selected"
                       : base === "some"
-                      ? "On some selected"
-                      : "Not on selected"
+                        ? "On some selected"
+                        : "Not on selected"
                   }
                 >
                   {person}

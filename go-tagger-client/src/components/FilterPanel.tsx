@@ -3,6 +3,8 @@ import type { Setter, Accessor } from "solid-js";
 import { fetchPhotos } from "../api";
 import { getTopTags, getTopPeople } from "../api";
 import { getTagSuggestions, getPeopleSuggestions } from "../api";
+import { AutocompleteInput } from "./AutocompleteInput";
+import { TopItemPills } from "./TopItemPills";
 
 interface FilterPanelProps {
   showFilterPanel: Accessor<boolean>;
@@ -29,13 +31,6 @@ export function FilterPanel({
   setTotalPages,
   refreshPhotos,
 }: FilterPanelProps) {
-  // Autocomplete state
-  const [tagSuggestions, setTagSuggestions] = createSignal<string[]>([]);
-  const [showTagDropdown, setShowTagDropdown] = createSignal(false);
-  const [selectedTagIndex, setSelectedTagIndex] = createSignal(-1);
-  const [peopleSuggestions, setPeopleSuggestions] = createSignal<string[]>([]);
-  const [showPeopleDropdown, setShowPeopleDropdown] = createSignal(false);
-  const [selectedPersonIndex, setSelectedPersonIndex] = createSignal(-1);
   // Top tags/people state
   const [topTags, setTopTags] = createSignal<string[]>([]);
   const [topPeople, setTopPeople] = createSignal<string[]>([]);
@@ -63,6 +58,9 @@ export function FilterPanel({
 
   // Fetch photos when filters, page, limit, or refreshPhotos change
   createEffect(() => {
+    // Access refreshPhotos to make this effect reactive to it
+    refreshPhotos();
+
     setPhotosLoading(true);
     fetchPhotos(page(), limit(), {
       tags: searchTags() || undefined,
@@ -88,21 +86,7 @@ export function FilterPanel({
         setTotalPages(1);
         setPhotosLoading(false);
       });
-  }, [
-    searchTags,
-    tagsLogic,
-    searchPeople,
-    peopleLogic,
-    fileType,
-    beforeDate,
-    beforeTime,
-    afterDate,
-    afterTime,
-    showUntagged,
-    limit,
-    page,
-    refreshPhotos,
-  ]);
+  });
 
   const handleSearch = () => {
     setPage(1);
@@ -122,22 +106,20 @@ export function FilterPanel({
     setPage(1);
   };
 
-  const acceptTagSuggestion = (suggestion: string) => {
+  const handleTagClick = (tag: string) => {
     const current = searchTags();
     const tagsArr = current ? current.split(",").map((t) => t.trim()) : [];
-    tagsArr[tagsArr.length - 1] = suggestion;
-    setSearchTags(tagsArr.filter(Boolean).join(", "));
-    setShowTagDropdown(false);
-    setSelectedTagIndex(-1);
+    if (!tagsArr.includes(tag)) {
+      setSearchTags(tagsArr.concat(tag).filter(Boolean).join(", "));
+    }
   };
 
-  const acceptPersonSuggestion = (suggestion: string) => {
+  const handlePersonClick = (person: string) => {
     const current = searchPeople();
     const peopleArr = current ? current.split(",").map((p) => p.trim()) : [];
-    peopleArr[peopleArr.length - 1] = suggestion;
-    setSearchPeople(peopleArr.filter(Boolean).join(", "));
-    setShowPeopleDropdown(false);
-    setSelectedPersonIndex(-1);
+    if (!peopleArr.includes(person)) {
+      setSearchPeople(peopleArr.concat(person).filter(Boolean).join(", "));
+    }
   };
 
   return (
@@ -156,80 +138,13 @@ export function FilterPanel({
           <div
             style={{ display: "flex", gap: "0.5rem", "align-items": "center" }}
           >
-            <div class="autocomplete-wrapper">
-              <input
-                id="search-tags"
-                type="text"
-                placeholder="beach, sunset, vacation"
-                value={searchTags()}
-                onInput={async (event) => {
-                  const value = event.currentTarget.value;
-                  setSearchTags(value);
-                  setSelectedTagIndex(-1);
-                  if (value.trim()) {
-                    const last = value.split(",").pop()?.trim() ?? "";
-                    if (last) {
-                      setTagSuggestions(await getTagSuggestions(last));
-                      setShowTagDropdown(true);
-                    } else {
-                      setShowTagDropdown(false);
-                    }
-                  } else {
-                    setShowTagDropdown(false);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (!showTagDropdown() || tagSuggestions().length === 0)
-                    return;
-
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    setSelectedTagIndex((prev) =>
-                      prev < tagSuggestions().length - 1 ? prev + 1 : prev
-                    );
-                  } else if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    setSelectedTagIndex((prev) => (prev > 0 ? prev - 1 : -1));
-                  } else if (event.key === "Enter" || event.key === "Tab") {
-                    const idx = selectedTagIndex();
-                    if (idx >= 0 && idx < tagSuggestions().length) {
-                      event.preventDefault();
-                      acceptTagSuggestion(tagSuggestions()[idx]);
-                    }
-                  } else if (event.key === "Escape") {
-                    setShowTagDropdown(false);
-                    setSelectedTagIndex(-1);
-                  }
-                }}
-                onBlur={() => setTimeout(() => setShowTagDropdown(false), 150)}
-                onFocus={async (event) => {
-                  const value = event.currentTarget.value;
-                  if (value.trim()) {
-                    const last = value.split(",").pop()?.trim() ?? "";
-                    if (last) {
-                      setTagSuggestions(await getTagSuggestions(last));
-                      setShowTagDropdown(true);
-                    }
-                  }
-                }}
-                autocomplete="off"
-              />
-              {showTagDropdown() && tagSuggestions().length > 0 && (
-                <div class="autocomplete-dropdown">
-                  {tagSuggestions().map((suggestion, index) => (
-                    <div
-                      class={`autocomplete-item ${
-                        selectedTagIndex() === index ? "selected" : ""
-                      }`}
-                      onMouseDown={() => acceptTagSuggestion(suggestion)}
-                      onMouseEnter={() => setSelectedTagIndex(index)}
-                    >
-                      {suggestion}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <AutocompleteInput
+              id="search-tags"
+              placeholder="beach, sunset, vacation"
+              value={searchTags}
+              onValueChange={setSearchTags}
+              getSuggestions={getTagSuggestions}
+            />
             <select
               value={tagsLogic()}
               onChange={(e) => setTagsLogic(e.currentTarget.value)}
@@ -238,126 +153,20 @@ export function FilterPanel({
               <option value="or">OR</option>
             </select>
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: "0.5rem",
-              "flex-wrap": "wrap",
-              margin: "0.5rem 0",
-            }}
-          >
-            {topTags().map((tag) => (
-              <button
-                type="button"
-                class="pill"
-                style={{
-                  padding: "0.25rem 0.75rem",
-                  "border-radius": "999px",
-                  border: "1px solid #ccc",
-                  background: "#f5f5f5",
-                  cursor: "pointer",
-                  "font-size": "0.9em",
-                }}
-                onClick={() => {
-                  const current = searchTags();
-                  const tagsArr = current
-                    ? current.split(",").map((t) => t.trim())
-                    : [];
-                  if (!tagsArr.includes(tag)) {
-                    setSearchTags(
-                      tagsArr.concat(tag).filter(Boolean).join(", ")
-                    );
-                  }
-                }}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
+          <TopItemPills items={topTags()} onItemClick={handleTagClick} />
         </div>
         <div class="field-group">
           <label for="search-people">Search by people (comma-separated)</label>
           <div
             style={{ display: "flex", gap: "0.5rem", "align-items": "center" }}
           >
-            <div class="autocomplete-wrapper">
-              <input
-                id="search-people"
-                type="text"
-                placeholder="John, Mary"
-                value={searchPeople()}
-                onInput={async (event) => {
-                  const value = event.currentTarget.value;
-                  setSearchPeople(value);
-                  setSelectedPersonIndex(-1);
-                  if (value.trim()) {
-                    const last = value.split(",").pop()?.trim() ?? "";
-                    if (last) {
-                      setPeopleSuggestions(await getPeopleSuggestions(last));
-                      setShowPeopleDropdown(true);
-                    } else {
-                      setShowPeopleDropdown(false);
-                    }
-                  } else {
-                    setShowPeopleDropdown(false);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (!showPeopleDropdown() || peopleSuggestions().length === 0)
-                    return;
-
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    setSelectedPersonIndex((prev) =>
-                      prev < peopleSuggestions().length - 1 ? prev + 1 : prev
-                    );
-                  } else if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    setSelectedPersonIndex((prev) =>
-                      prev > 0 ? prev - 1 : -1
-                    );
-                  } else if (event.key === "Enter" || event.key === "Tab") {
-                    const idx = selectedPersonIndex();
-                    if (idx >= 0 && idx < peopleSuggestions().length) {
-                      event.preventDefault();
-                      acceptPersonSuggestion(peopleSuggestions()[idx]);
-                    }
-                  } else if (event.key === "Escape") {
-                    setShowPeopleDropdown(false);
-                    setSelectedPersonIndex(-1);
-                  }
-                }}
-                onBlur={() =>
-                  setTimeout(() => setShowPeopleDropdown(false), 150)
-                }
-                onFocus={async (event) => {
-                  const value = event.currentTarget.value;
-                  if (value.trim()) {
-                    const last = value.split(",").pop()?.trim() ?? "";
-                    if (last) {
-                      setPeopleSuggestions(await getPeopleSuggestions(last));
-                      setShowPeopleDropdown(true);
-                    }
-                  }
-                }}
-                autocomplete="off"
-              />
-              {showPeopleDropdown() && peopleSuggestions().length > 0 && (
-                <div class="autocomplete-dropdown">
-                  {peopleSuggestions().map((suggestion, index) => (
-                    <div
-                      class={`autocomplete-item ${
-                        selectedPersonIndex() === index ? "selected" : ""
-                      }`}
-                      onMouseDown={() => acceptPersonSuggestion(suggestion)}
-                      onMouseEnter={() => setSelectedPersonIndex(index)}
-                    >
-                      {suggestion}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <AutocompleteInput
+              id="search-people"
+              placeholder="John, Mary"
+              value={searchPeople}
+              onValueChange={setSearchPeople}
+              getSuggestions={getPeopleSuggestions}
+            />
             <select
               value={peopleLogic()}
               onChange={(e) => setPeopleLogic(e.currentTarget.value)}
@@ -366,42 +175,7 @@ export function FilterPanel({
               <option value="or">OR</option>
             </select>
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: "0.5rem",
-              "flex-wrap": "wrap",
-              margin: "0.5rem 0",
-            }}
-          >
-            {topPeople().map((person) => (
-              <button
-                type="button"
-                class="pill"
-                style={{
-                  padding: "0.25rem 0.75rem",
-                  "border-radius": "999px",
-                  border: "1px solid #ccc",
-                  background: "#f5f5f5",
-                  cursor: "pointer",
-                  "font-size": "0.9em",
-                }}
-                onClick={() => {
-                  const current = searchPeople();
-                  const peopleArr = current
-                    ? current.split(",").map((p) => p.trim())
-                    : [];
-                  if (!peopleArr.includes(person)) {
-                    setSearchPeople(
-                      peopleArr.concat(person).filter(Boolean).join(", ")
-                    );
-                  }
-                }}
-              >
-                {person}
-              </button>
-            ))}
-          </div>
+          <TopItemPills items={topPeople()} onItemClick={handlePersonClick} />
         </div>
         <div class="field-group">
           <label for="search-name">Search by name</label>
