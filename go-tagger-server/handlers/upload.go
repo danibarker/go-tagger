@@ -150,7 +150,7 @@ func HandleUploadPhotos(c *gin.Context) {
 		}
 
 		photo := models.Photo{
-			FilePath:      destinationPath,
+			FilePath:      services.NormalizePhotoPath(destinationPath),
 			FileHash:      hash,
 			ThumbnailPath: services.ThumbnailURLPrefix + hash + ".jpg",
 			Width:         width,

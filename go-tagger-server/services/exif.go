@@ -39,7 +39,8 @@ func BulkWriteTags(photos []models.Photo) error {
 	// Exiftool is most efficient when writing to multiple files at once.
 	// We iterate through our database photos and prepare the metadata for each.
 	for _, photo := range photos {
-		if !canWriteMetadata(photo.FilePath) {
+		resolvedPath := ResolvePhotoPath(photo.FilePath)
+		if !canWriteMetadata(resolvedPath) {
 			continue
 		}
 		var tagNames []string
@@ -51,7 +52,7 @@ func BulkWriteTags(photos []models.Photo) error {
 		}
 		fm := exiftool.EmptyFileMetadata()
 		fm.SetStrings("XMP:Subject", tagNames) // XMP:Subject is the industry standard for portable tags
-		fm.File = photo.FilePath
+		fm.File = resolvedPath
 		metadataList = append(metadataList, fm)
 	}
 
@@ -73,7 +74,8 @@ func BulkWritePeople(photos []models.Photo) error {
 	var metadataList []exiftool.FileMetadata
 
 	for _, photo := range photos {
-		if !canWriteMetadata(photo.FilePath) {
+		resolvedPath := ResolvePhotoPath(photo.FilePath)
+		if !canWriteMetadata(resolvedPath) {
 			continue
 		}
 		var peopleNames []string
@@ -86,7 +88,7 @@ func BulkWritePeople(photos []models.Photo) error {
 		fm := exiftool.EmptyFileMetadata()
 		// XMP:PersonInImage is the standard field for people/faces in images
 		fm.SetStrings("XMP:PersonInImage", peopleNames)
-		fm.File = photo.FilePath
+		fm.File = resolvedPath
 		metadataList = append(metadataList, fm)
 	}
 
@@ -105,7 +107,8 @@ func BulkWriteAllMetadata(photos []models.Photo) error {
 	var metadataList []exiftool.FileMetadata
 
 	for _, photo := range photos {
-		if !canWriteMetadata(photo.FilePath) {
+		resolvedPath := ResolvePhotoPath(photo.FilePath)
+		if !canWriteMetadata(resolvedPath) {
 			continue
 		}
 		var tagNames []string
@@ -123,7 +126,7 @@ func BulkWriteAllMetadata(photos []models.Photo) error {
 		fm := exiftool.EmptyFileMetadata()
 		fm.SetStrings("XMP:Subject", tagNames)
 		fm.SetStrings("XMP:PersonInImage", peopleNames)
-		fm.File = photo.FilePath
+		fm.File = resolvedPath
 		metadataList = append(metadataList, fm)
 	}
 
@@ -138,6 +141,7 @@ func BulkWriteAllMetadata(photos []models.Photo) error {
 }
 
 func ReadInitialMetadata(filePath string) (int, int, time.Time, []string, []string) {
+	filePath = ResolvePhotoPath(filePath)
 	if Et == nil {
 		log.Println("ExifTool not initialized. Returning defaults.")
 		return 0, 0, time.Time{}, nil, nil

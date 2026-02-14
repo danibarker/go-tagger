@@ -222,7 +222,7 @@ func OldIndexFiles() {
 			}
 			// Create a new Photo model
 			photo := models.Photo{
-				FilePath:      path,
+				FilePath:      NormalizePhotoPath(path),
 				FileHash:      hash,
 				ThumbnailPath: "/thumbnails/" + hash + ext + ".jpg", // Simple placeholder path
 				Width:         width,                                // Placeholder
@@ -502,7 +502,7 @@ func IndexFiles() {
 				thumbURL := ThumbnailURLPrefix + thumbFileName
 
 				photo := models.Photo{
-					FilePath:      job.path,
+					FilePath:      NormalizePhotoPath(job.path),
 					FileHash:      hash,
 					ThumbnailPath: thumbURL,
 					Width:         width,
@@ -643,7 +643,8 @@ func UpdateIndexFiles() {
 			defer wg.Done()
 
 			// Check if the file still exists at the recorded path
-			if _, err := os.Stat(p.FilePath); os.IsNotExist(err) {
+			resolvedPath := ResolvePhotoPath(p.FilePath)
+			if _, err := os.Stat(resolvedPath); os.IsNotExist(err) {
 
 				// File is MISSING. Check if it was RENAMED/MOVED.
 				// We do this by calculating the hash of the file at the old path and

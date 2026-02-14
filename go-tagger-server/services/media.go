@@ -54,3 +54,31 @@ func UniqueFilePath(dir, filename string) (string, error) {
 		candidate = filepath.Join(dir, fmt.Sprintf("%s-%d%s", base, i, ext))
 	}
 }
+
+// NormalizePhotoPath stores paths relative to PhotoRoot when possible.
+func NormalizePhotoPath(path string) string {
+	if path == "" {
+		return path
+	}
+	if PhotoRoot == "" {
+		return path
+	}
+	if filepath.IsAbs(path) {
+		rel, err := filepath.Rel(PhotoRoot, path)
+		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return rel
+		}
+	}
+	return path
+}
+
+// ResolvePhotoPath converts stored relative paths into absolute paths under PhotoRoot.
+func ResolvePhotoPath(path string) string {
+	if path == "" {
+		return path
+	}
+	if filepath.IsAbs(path) || PhotoRoot == "" {
+		return path
+	}
+	return filepath.Join(PhotoRoot, path)
+}
