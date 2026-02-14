@@ -278,6 +278,117 @@ func IndexFiles() {
 	photoMetadataMap := make(map[string]photoMetadata)
 	var metadataMutex sync.Mutex
 	var metadataSampleCount int64
+	metadataBatchCh := make(chan map[string]photoMetadata, 10)
+	var metadataWg sync.WaitGroup
+
+	importMetadata := func(metadata map[string]photoMetadata, stage string) {
+		if len(metadata) == 0 {
+			return
+		}
+		log.Printf("Importing existing metadata for %d photos (%s)...", len(metadata), stage)
+
+		// Collect all hashes that have metadata
+		var hashesWithMetadata []string
+		for hash := range metadata {
+			hashesWithMetadata = append(hashesWithMetadata, hash)
+		}
+
+		// Query photos by hash to get their IDs
+		var photosWithMetadata []models.Photo
+		db.DB.Where("file_hash IN ?", hashesWithMetadata).Find(&photosWithMetadata)
+		log.Printf("Metadata import (%s): loaded %d photos for %d hashes.", stage, len(photosWithMetadata), len(hashesWithMetadata))
+
+		// Create a map of hash -> photo ID for quick lookup
+		hashToPhotoID := make(map[string]uint)
+		for _, photo := range photosWithMetadata {
+			hashToPhotoID[photo.FileHash] = photo.ID
+		}
+
+		// Collect all unique tag and people names
+		tagSet := make(map[string]bool)
+		peopleSet := make(map[string]bool)
+		for _, metadata := range metadata {
+			for _, tag := range metadata.tags {
+				tagSet[tag] = true
+			}
+			for _, person := range metadata.people {
+				peopleSet[person] = true
+			}
+		}
+
+		log.Printf("Metadata import (%s): unique tags=%d, people=%d", stage, len(tagSet), len(peopleSet))
+		// Find or create all tags
+		tagNameToID := make(map[string]uint)
+		for tagName := range tagSet {
+			var tag models.Tag
+			db.DB.FirstOrCreate(&tag, models.Tag{Name: tagName})
+			tagNameToID[tagName] = tag.ID
+		}
+
+		// Find or create all people
+		personNameToID := make(map[string]uint)
+		for personName := range peopleSet {
+			var person models.Person
+			db.DB.FirstOrCreate(&person, models.Person{Name: personName})
+			personNameToID[personName] = person.ID
+		}
+
+		// Create associations
+		for hash, metadata := range metadata {
+			photoID, exists := hashToPhotoID[hash]
+			if !exists {
+				log.Printf("Metadata import (%s): photo hash not found in DB: %s", stage, hash)
+				continue
+			}
+
+			// Associate tags
+			for _, tagName := range metadata.tags {
+				tagID := tagNameToID[tagName]
+				// PostgreSQL-compatible upsert to avoid duplicate key errors
+				result := db.DB.Exec("INSERT INTO photo_tags (photo_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", photoID, tagID)
+				if result.Error != nil {
+					log.Printf("Failed to link tag '%s' to photo %d: %v", tagName, photoID, result.Error)
+				}
+			}
+
+			// Associate people
+			for _, personName := range metadata.people {
+				personID := personNameToID[personName]
+				result := db.DB.Exec("INSERT INTO photo_people (photo_id, person_id) VALUES (?, ?) ON CONFLICT DO NOTHING", photoID, personID)
+				if result.Error != nil {
+					log.Printf("Failed to link person '%s' to photo %d: %v", personName, photoID, result.Error)
+				}
+			}
+		}
+
+		log.Printf("Metadata import complete (%s). Processed %d tags and %d people.", stage, len(tagSet), len(peopleSet))
+	}
+
+	metadataWg.Add(1)
+	go func() {
+		defer metadataWg.Done()
+		for batch := range metadataBatchCh {
+			importMetadata(batch, "batch")
+		}
+	}()
+
+	queueMetadataBatch := func(hashes []string) {
+		if len(hashes) == 0 {
+			return
+		}
+		metadataMutex.Lock()
+		batchMetadata := make(map[string]photoMetadata)
+		for _, hash := range hashes {
+			if metadata, ok := photoMetadataMap[hash]; ok {
+				batchMetadata[hash] = metadata
+				delete(photoMetadataMap, hash)
+			}
+		}
+		metadataMutex.Unlock()
+		if len(batchMetadata) > 0 {
+			metadataBatchCh <- batchMetadata
+		}
+	}
 
 	// 1. Fetch all existing hashes into a simple string slice
 	var existingHashesSlice []string
@@ -428,6 +539,12 @@ func IndexFiles() {
 							log.Printf("Error during chunk batch insert: %v", result.Error)
 						}
 						log.Printf("Inserted %d photos in chunk.", result.RowsAffected)
+
+						batchHashes := make([]string, 0, len(batch))
+						for _, photo := range batch {
+							batchHashes = append(batchHashes, photo.FileHash)
+						}
+						queueMetadataBatch(batchHashes)
 					} else {
 						photosMutex.Unlock()
 					}
@@ -489,85 +606,15 @@ func IndexFiles() {
 	}
 
 	// --- 6. IMPORT EXISTING METADATA (TAGS AND PEOPLE) ---
-	if len(photoMetadataMap) > 0 {
-		log.Printf("Importing existing metadata for %d photos...", len(photoMetadataMap))
-
-		// Collect all hashes that have metadata
-		var hashesWithMetadata []string
-		for hash := range photoMetadataMap {
-			hashesWithMetadata = append(hashesWithMetadata, hash)
-		}
-
-		// Query photos by hash to get their IDs
-		var photosWithMetadata []models.Photo
-		db.DB.Where("file_hash IN ?", hashesWithMetadata).Find(&photosWithMetadata)
-		log.Printf("Metadata import: loaded %d photos for %d hashes.", len(photosWithMetadata), len(hashesWithMetadata))
-
-		// Create a map of hash -> photo ID for quick lookup
-		hashToPhotoID := make(map[string]uint)
-		for _, photo := range photosWithMetadata {
-			hashToPhotoID[photo.FileHash] = photo.ID
-		}
-
-		// Collect all unique tag and people names
-		tagSet := make(map[string]bool)
-		peopleSet := make(map[string]bool)
-		for _, metadata := range photoMetadataMap {
-			for _, tag := range metadata.tags {
-				tagSet[tag] = true
-			}
-			for _, person := range metadata.people {
-				peopleSet[person] = true
-			}
-		}
-
-		log.Printf("Metadata import: unique tags=%d, people=%d", len(tagSet), len(peopleSet))
-		// Find or create all tags
-		tagNameToID := make(map[string]uint)
-		for tagName := range tagSet {
-			var tag models.Tag
-			db.DB.FirstOrCreate(&tag, models.Tag{Name: tagName})
-			tagNameToID[tagName] = tag.ID
-		}
-
-		// Find or create all people
-		personNameToID := make(map[string]uint)
-		for personName := range peopleSet {
-			var person models.Person
-			db.DB.FirstOrCreate(&person, models.Person{Name: personName})
-			personNameToID[personName] = person.ID
-		}
-
-		// Create associations
-		for hash, metadata := range photoMetadataMap {
-			photoID, exists := hashToPhotoID[hash]
-			if !exists {
-				log.Printf("Metadata import: photo hash not found in DB: %s", hash)
-				continue
-			}
-
-			// Associate tags
-			for _, tagName := range metadata.tags {
-				tagID := tagNameToID[tagName]
-				// PostgreSQL-compatible upsert to avoid duplicate key errors
-				result := db.DB.Exec("INSERT INTO photo_tags (photo_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", photoID, tagID)
-				if result.Error != nil {
-					log.Printf("Failed to link tag '%s' to photo %d: %v", tagName, photoID, result.Error)
-				}
-			}
-
-			// Associate people
-			for _, personName := range metadata.people {
-				personID := personNameToID[personName]
-				result := db.DB.Exec("INSERT INTO photo_people (photo_id, person_id) VALUES (?, ?) ON CONFLICT DO NOTHING", photoID, personID)
-				if result.Error != nil {
-					log.Printf("Failed to link person '%s' to photo %d: %v", personName, photoID, result.Error)
-				}
-			}
-		}
-
-		log.Printf("Metadata import complete. Processed %d tags and %d people.", len(tagSet), len(peopleSet))
+	metadataMutex.Lock()
+	remainingMetadata := photoMetadataMap
+	photoMetadataMap = make(map[string]photoMetadata)
+	metadataMutex.Unlock()
+	if len(remainingMetadata) > 0 {
+		metadataBatchCh <- remainingMetadata
 	}
+	close(metadataBatchCh)
+	metadataWg.Wait()
 }
 func UpdateIndexFiles() {
 	indexingRunning.Lock() // This blocks if another index is running.

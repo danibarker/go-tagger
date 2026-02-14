@@ -8,6 +8,7 @@ import {
   getPerfMonitoring,
   setPerfMonitoring,
   syncMetadataToFiles,
+  importMetadataFromFiles,
 } from "../api";
 import { FilterPanel } from "../components/FilterPanel";
 import { BatchTaggingPanel } from "../components/BatchTaggingPanel";
@@ -15,6 +16,7 @@ import { PageControls } from "../components/PageControls";
 import { PhotoViewerModal } from "./PhotoViewerModal";
 import { AppHeader } from "../components/AppHeader";
 import { GalleryControls } from "../components/GalleryControls";
+import { TopNav } from "../components/TopNav";
 
 export function GalleryPage() {
   console.log("GalleryPage mounted!");
@@ -259,6 +261,22 @@ export function GalleryPage() {
     }
   };
 
+  const handleImportMetadata = async () => {
+    try {
+      const result = await importMetadataFromFiles();
+      alert(
+        `Imported metadata for ${result.photos_with_metadata} of ${result.photos_scanned} files.`,
+      );
+      setRefreshPhotos((v) => !v);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to import metadata from files";
+      alert(`Error: ${errorMessage}`);
+    }
+  };
+
   const toggleFiltersPanel = () => {
     const panel = document.getElementById("filters-panel");
     if (panel) {
@@ -276,6 +294,7 @@ export function GalleryPage() {
 
   return (
     <main class="app-shell">
+      <TopNav />
       <AppHeader
         perfMonitoring={perfMonitoring}
         onTogglePerfMonitoring={handleTogglePerfMonitoring}
@@ -283,6 +302,7 @@ export function GalleryPage() {
         onUpdateIndex={handleUpdateIndex}
         onResetIndex={handleResetIndex}
         onSyncMetadata={handleSyncMetadata}
+        onImportMetadata={handleImportMetadata}
       />
 
       <FilterPanel

@@ -7,6 +7,7 @@ interface AppHeaderProps {
   onUpdateIndex: () => void;
   onResetIndex: () => void;
   onSyncMetadata?: () => void;
+  onImportMetadata?: () => void;
 }
 
 export function AppHeader(props: AppHeaderProps) {
@@ -14,7 +15,6 @@ export function AppHeader(props: AppHeaderProps) {
     <header class="app-shell__header">
       <div>
         <h1>Go Tagger</h1>
-        <p class="subtitle">Quickly preview photos and batch tag them.</p>
       </div>
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <button type="button" class="ghost" onClick={props.onIndexing}>
@@ -29,6 +29,11 @@ export function AppHeader(props: AppHeaderProps) {
         {props.onSyncMetadata && (
           <button type="button" class="ghost" onClick={props.onSyncMetadata}>
             Sync Metadata to Files
+          </button>
+        )}
+        {props.onImportMetadata && (
+          <button type="button" class="ghost" onClick={props.onImportMetadata}>
+            Import Metadata from Files
           </button>
         )}
         <label

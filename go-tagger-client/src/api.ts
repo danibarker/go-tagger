@@ -231,3 +231,57 @@ export const syncMetadataToFiles = async (): Promise<{
 
   return (await res.json()) as { message: string; photos_to_sync: number };
 };
+
+export const importMetadataFromFiles = async (): Promise<{
+  message: string;
+  photos_scanned: number;
+  photos_with_metadata: number;
+}> => {
+  const res = await fetch(`${API_BASE}/api/import-metadata`, {
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to import metadata from files");
+  }
+
+  return (await res.json()) as {
+    message: string;
+    photos_scanned: number;
+    photos_with_metadata: number;
+  };
+};
+
+export const uploadPhotos = async (payload: {
+  files: File[];
+  folder: string;
+  tags?: string;
+  people?: string;
+}): Promise<{
+  uploaded: number;
+  skipped: number;
+  errors: string[];
+}> => {
+  const formData = new FormData();
+  formData.append("folder", payload.folder);
+  if (payload.tags) formData.append("tags", payload.tags);
+  if (payload.people) formData.append("people", payload.people);
+  payload.files.forEach((file) => formData.append("files", file));
+
+  const res = await fetch(`${API_BASE}/api/photos/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to upload files");
+  }
+
+  return (await res.json()) as {
+    uploaded: number;
+    skipped: number;
+    errors: string[];
+  };
+};

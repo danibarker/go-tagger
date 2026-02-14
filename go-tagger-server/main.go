@@ -40,6 +40,7 @@ func main() {
 	}
 
 	r := gin.Default()
+	r.MaxMultipartMemory = 1 << 30
 
 	// Register media routes BEFORE NoRoute handler (both GET and HEAD)
 	r.GET("/media/photos/:hash", handlers.HandleServeOriginalPhoto)
@@ -84,12 +85,14 @@ func main() {
 		api.PATCH("/index", handlers.HandleUpdateIndexing)
 		api.DELETE("/index", handlers.HandleResetIndex)
 		api.POST("/sync-metadata", handlers.HandleSyncMetadataToFiles)
+		api.POST("/import-metadata", handlers.HandleImportMetadataFromFiles)
 		api.GET("/perf-monitoring", handlers.HandleGetPerfMonitoring)
 		api.POST("/perf-monitoring", handlers.HandleSetPerfMonitoring)
 		api.GET("/tags/autocomplete", handlers.HandleGetTagsAutoComplete)
 		api.GET("/tags", handlers.HandleGetTopTags)
 		api.GET("/people/autocomplete", handlers.HandleGetPeopleAutoComplete)
 		api.GET("/people", handlers.HandleGetPeople)
+		api.POST("/photos/upload", handlers.HandleUploadPhotos)
 	}
 
 	// 4. Run the Server
