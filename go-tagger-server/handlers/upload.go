@@ -77,10 +77,18 @@ func HandleUploadPhotos(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create folder"})
 		return
 	}
+	if services.ThumbnailRoot == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Thumbnail root is not configured"})
+		return
+	}
+	if err := os.MkdirAll(services.ThumbnailRoot, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create thumbnail folder"})
+		return
+	}
 
 	uploaded := 0
 	skipped := 0
-	var errors []string
+	errors := make([]string, 0)
 	var photosToWrite []models.Photo
 
 	for _, file := range files {
@@ -123,6 +131,24 @@ func HandleUploadPhotos(c *gin.Context) {
 		mergedTags := mergeNameLists(tags, fileTags)
 		mergedPeople := mergeNameLists(people, filePeople)
 
+		fileType := services.DetectFileType(ext)
+		thumbPath := filepath.Join(services.ThumbnailRoot, hash+".jpg")
+		if fileType == "video" {
+			if err := services.GenerateVideoThumbnail(destinationPath, thumbPath); err != nil {
+				errors = append(errors, fmt.Sprintf("%s: thumbnail failed (%v)", safeName, err))
+			}
+		} else if fileType == "image" {
+			if ext == ".webp" {
+				if err := services.GenerateImageThumbnailFFmpeg(destinationPath, thumbPath); err != nil {
+					errors = append(errors, fmt.Sprintf("%s: thumbnail failed (%v)", safeName, err))
+				}
+			} else {
+				if err := services.GenerateImageThumbnail(destinationPath, thumbPath); err != nil {
+					errors = append(errors, fmt.Sprintf("%s: thumbnail failed (%v)", safeName, err))
+				}
+			}
+		}
+
 		photo := models.Photo{
 			FilePath:      destinationPath,
 			FileHash:      hash,
@@ -131,7 +157,7 @@ func HandleUploadPhotos(c *gin.Context) {
 			Height:        height,
 			FileSize:      info.Size(),
 			TakenAt:       takenAt,
-			FileType:      services.DetectFileType(ext),
+			FileType:      fileType,
 		}
 
 		result := db.DB.Clauses(clause.OnConflict{

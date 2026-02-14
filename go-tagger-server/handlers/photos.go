@@ -215,12 +215,6 @@ func HandleServeOriginalPhoto(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
 	c.Header("Content-Type", contentType)
 
-	// If this is a HEAD request, just return headers
-	if c.Request.Method == "HEAD" {
-		c.Status(http.StatusOK)
-		return
-	}
-
 	// Open the file
 	file, err := os.Open(photo.FilePath)
 	if err != nil {
@@ -236,7 +230,7 @@ func HandleServeOriginalPhoto(c *gin.Context) {
 		return
 	}
 
-	c.DataFromReader(http.StatusOK, fileInfo.Size(), contentType, file, nil)
+	http.ServeContent(c.Writer, c.Request, fileInfo.Name(), fileInfo.ModTime(), file)
 }
 
 // HandleServeThumbnail streams the generated thumbnail file for a photo hash.

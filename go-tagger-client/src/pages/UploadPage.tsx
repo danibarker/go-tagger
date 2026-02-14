@@ -39,11 +39,12 @@ export function UploadPage() {
         people: people().trim(),
       });
 
+      const uploadErrors = Array.isArray(result.errors) ? result.errors : [];
       setSuccess(
         `Uploaded ${result.uploaded} files. Skipped ${result.skipped}.`,
       );
-      if (result.errors.length) {
-        setError(result.errors.slice(0, 5).join("\n"));
+      if (uploadErrors.length) {
+        setError(uploadErrors.slice(0, 5).join("\n"));
       }
       setFiles([]);
       setTags("");
