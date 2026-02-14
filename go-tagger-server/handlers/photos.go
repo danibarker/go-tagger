@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -218,6 +219,12 @@ func HandleServeOriginalPhoto(c *gin.Context) {
 	// Open the file
 	file, err := os.Open(photo.FilePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("original missing: hash=%s path=%s err=%v", hash, photo.FilePath, err)
+			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+			return
+		}
+		log.Printf("original open failed: hash=%s path=%s err=%v", hash, photo.FilePath, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})
 		return
 	}
@@ -226,6 +233,7 @@ func HandleServeOriginalPhoto(c *gin.Context) {
 	// Get file info
 	fileInfo, err := file.Stat()
 	if err != nil {
+		log.Printf("original stat failed: hash=%s path=%s err=%v", hash, photo.FilePath, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to stat file"})
 		return
 	}
@@ -252,6 +260,11 @@ func HandleServeThumbnail(c *gin.Context) {
 
 	// If thumbnail doesn't exist, try to generate it on-demand
 	if _, err := os.Stat(thumbPath); os.IsNotExist(err) {
+		if c.Request.Method == http.MethodHead {
+			log.Printf("thumbnail missing on HEAD: hash=%s path=%s", hash, thumbPath)
+			c.JSON(http.StatusNotFound, gin.H{"error": "thumbnail not found"})
+			return
+		}
 		// Find the photo by hash to get the original file path
 		var photo models.Photo
 		if err := db.DB.Where("file_hash = ?", hash).First(&photo).Error; err != nil {
@@ -264,26 +277,34 @@ func HandleServeThumbnail(c *gin.Context) {
 		if photo.FileType == "image" {
 			if ext == ".webp" {
 				if err := services.GenerateImageThumbnailFFmpeg(photo.FilePath, thumbPath); err != nil {
+					log.Printf("thumbnail generate failed (webp): hash=%s path=%s src=%s err=%v", hash, thumbPath, photo.FilePath, err)
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate thumbnail"})
 					return
 				}
 			} else {
 				if err := services.GenerateImageThumbnail(photo.FilePath, thumbPath); err != nil {
+					log.Printf("thumbnail generate failed (image): hash=%s path=%s src=%s err=%v", hash, thumbPath, photo.FilePath, err)
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate thumbnail"})
 					return
 				}
 			}
 		} else if photo.FileType == "video" {
 			if err := services.GenerateVideoThumbnail(photo.FilePath, thumbPath); err != nil {
+				log.Printf("thumbnail generate failed (video): hash=%s path=%s src=%s err=%v", hash, thumbPath, photo.FilePath, err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate thumbnail"})
 				return
 			}
 		}
 	} else if err != nil {
+		log.Printf("thumbnail stat failed: hash=%s path=%s err=%v", hash, thumbPath, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "thumbnail not found", "path": thumbPath, "err": err.Error()})
 		return
 	}
 
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	if c.Request.Method == http.MethodHead {
+		c.Status(http.StatusOK)
+		return
+	}
 	c.File(thumbPath)
 }
