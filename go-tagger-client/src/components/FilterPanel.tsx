@@ -17,6 +17,19 @@ interface FilterPanelProps {
   setPhotosLoading: Setter<boolean>;
   setTotalPages: Setter<number>;
   refreshPhotos: Accessor<boolean>;
+  onFilterChange?: (filters: {
+    tags: string;
+    tagsLogic: string;
+    people: string;
+    peopleLogic: string;
+    name: string;
+    fileType: string;
+    beforeDate: string;
+    beforeTime: string;
+    afterDate: string;
+    afterTime: string;
+    untagged: boolean;
+  }) => void;
 }
 
 export function FilterPanel({
@@ -30,6 +43,7 @@ export function FilterPanel({
   setPhotosLoading,
   setTotalPages,
   refreshPhotos,
+  onFilterChange,
 }: FilterPanelProps) {
   // Top tags/people state
   const [topTags, setTopTags] = createSignal<string[]>([]);
@@ -55,6 +69,23 @@ export function FilterPanel({
   const [afterDate, setAfterDate] = createSignal("");
   const [afterTime, setAfterTime] = createSignal("");
   const [showUntagged, setShowUntagged] = createSignal(false);
+
+  // Let the page know what filters are active (used for optimistic updates).
+  createEffect(() => {
+    onFilterChange?.({
+      tags: searchTags(),
+      tagsLogic: tagsLogic(),
+      people: searchPeople(),
+      peopleLogic: peopleLogic(),
+      name: searchName(),
+      fileType: fileType(),
+      beforeDate: beforeDate(),
+      beforeTime: beforeTime(),
+      afterDate: afterDate(),
+      afterTime: afterTime(),
+      untagged: showUntagged(),
+    });
+  });
 
   // Fetch photos when filters, page, limit, or refreshPhotos change
   createEffect(() => {

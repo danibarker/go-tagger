@@ -21,18 +21,166 @@ import { TopNav } from "../components/TopNav";
 export function GalleryPage() {
   console.log("GalleryPage mounted!");
 
+  type ActiveFilters = {
+    tags: string;
+    tagsLogic: string;
+    people: string;
+    peopleLogic: string;
+    untagged: boolean;
+  };
+
+  const [activeFilters, setActiveFilters] = createSignal<ActiveFilters>({
+    tags: "",
+    tagsLogic: "and",
+    people: "",
+    peopleLogic: "and",
+    untagged: false,
+  });
+
+  const parseCsv = (value: string): string[] =>
+    value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  const matchesActiveFilters = (photo: any): boolean => {
+    const f = activeFilters();
+    const tagFilter = parseCsv(f.tags).map((t) => t.toLowerCase());
+    const peopleFilter = parseCsv(f.people).map((p) => p.toLowerCase());
+
+    const photoTags = new Set(
+      (photo.tags ?? []).map((t: any) => String(t.name ?? "").toLowerCase()),
+    );
+    const photoPeople = new Set(
+      (photo.people ?? []).map((p: any) => String(p.name ?? "").toLowerCase()),
+    );
+
+    if (f.untagged) {
+      if (photoTags.size > 0) return false;
+    }
+
+    if (tagFilter.length > 0) {
+      if (f.tagsLogic === "or") {
+        if (!tagFilter.some((t) => photoTags.has(t))) return false;
+      } else {
+        if (!tagFilter.every((t) => photoTags.has(t))) return false;
+      }
+    }
+
+    if (peopleFilter.length > 0) {
+      if (f.peopleLogic === "or") {
+        if (!peopleFilter.some((p) => photoPeople.has(p))) return false;
+      } else {
+        if (!peopleFilter.every((p) => photoPeople.has(p))) return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleApplyBatchChanges = (change: {
+    entity: "tags" | "people";
+    photoIds: number[];
+    add: string[];
+    remove: string[];
+  }): (() => void) => {
+    const prevPhotos = photos();
+
+    const addSet = new Set(change.add.map((s) => s.trim()).filter(Boolean));
+    const removeSet = new Set(
+      change.remove.map((s) => s.trim()).filter(Boolean),
+    );
+    const idSet = new Set(change.photoIds);
+
+    let droppedFromFilter = false;
+
+    setPhotos((prev) => {
+      const updated = prev.map((photo) => {
+        if (!idSet.has(photo.ID)) return photo;
+
+        if (change.entity === "tags") {
+          const existing = Array.isArray(photo.tags) ? photo.tags : [];
+          const nextByLower = new Map<string, any>();
+          for (const t of existing) {
+            const name = String(t?.name ?? "").trim();
+            if (!name) continue;
+            nextByLower.set(name.toLowerCase(), { ...t, name });
+          }
+
+          for (const r of removeSet) {
+            nextByLower.delete(r.toLowerCase());
+          }
+          for (const a of addSet) {
+            const key = a.toLowerCase();
+            if (!nextByLower.has(key)) {
+              nextByLower.set(key, { ID: 0, name: a });
+            }
+          }
+
+          const tags = Array.from(nextByLower.values());
+          return { ...photo, tags };
+        }
+
+        // people
+        const existing = Array.isArray(photo.people) ? photo.people : [];
+        const nextByLower = new Map<string, any>();
+        for (const p of existing) {
+          const name = String(p?.name ?? "").trim();
+          if (!name) continue;
+          nextByLower.set(name.toLowerCase(), { ...p, name });
+        }
+
+        for (const r of removeSet) {
+          nextByLower.delete(r.toLowerCase());
+        }
+        for (const a of addSet) {
+          const key = a.toLowerCase();
+          if (!nextByLower.has(key)) {
+            nextByLower.set(key, { ID: 0, name: a });
+          }
+        }
+
+        const people = Array.from(nextByLower.values());
+        return { ...photo, people };
+      });
+
+      const filtered = updated.filter(matchesActiveFilters);
+      droppedFromFilter = filtered.length < updated.length;
+      return filtered;
+    });
+
+    // If photos fell out of the active filter, backfill in background.
+    if (droppedFromFilter) {
+      setRefreshPhotos((v) => !v);
+    }
+
+    return () => setPhotos(() => prevPhotos);
+  };
+
   // Single photo delete handler
   const handleDeletePhoto = async (id: number) => {
+    const prevPhotos = photos();
+    const prevSelected = selectedIds();
+
+    // Optimistically update UI first (no full re-fetch needed to remove from DOM)
+    setPhotos((prev) => prev.filter((p) => p.ID !== id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+
     try {
       await deletePhotos([id]);
+      // Background refresh to backfill the page and keep pagination correct.
       setRefreshPhotos((v) => !v);
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
     } catch (error) {
-      // Optionally log error
+      // Roll back optimistic update on failure.
+      setPhotos(() => prevPhotos);
+      setSelectedIds(() => prevSelected);
+      const msg =
+        error instanceof Error ? error.message : "Failed to delete photo";
+      alert(msg);
     }
   };
 
@@ -40,12 +188,26 @@ export function GalleryPage() {
   const handleBatchDelete = async () => {
     const ids = Array.from(selectedIds());
     if (!ids.length) return;
+    const prevPhotos = photos();
+    const prevSelected = selectedIds();
+
+    // Optimistically remove from the current page.
+    const idSet = new Set(ids);
+    setPhotos((prev) => prev.filter((p) => !idSet.has(p.ID)));
+    clearSelection();
+
     try {
       await deletePhotos(ids);
-      clearSelection();
+      // Background refresh to backfill and recalc total pages.
       setRefreshPhotos((v) => !v);
     } catch (error) {
-      // Optionally log error
+      setPhotos(() => prevPhotos);
+      setSelectedIds(() => prevSelected);
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "Failed to delete selected photos";
+      alert(msg);
     }
   };
   const [viewerHash, setViewerHash] = createSignal<string | null>(null);
@@ -316,12 +478,21 @@ export function GalleryPage() {
         setPhotosLoading={setPhotosLoading}
         setTotalPages={setTotalPages}
         refreshPhotos={refreshPhotos}
+        onFilterChange={(filters) =>
+          setActiveFilters({
+            tags: filters.tags,
+            tagsLogic: filters.tagsLogic,
+            people: filters.people,
+            peopleLogic: filters.peopleLogic,
+            untagged: filters.untagged,
+          })
+        }
       />
 
       <BatchTaggingPanel
         selectedPhotoIds={() => Array.from(selectedIds())}
         selectedPhotos={() => photos().filter((p) => selectedIds().has(p.ID))}
-        onUpdated={() => setRefreshPhotos((v) => !v)}
+        onApplyChanges={handleApplyBatchChanges}
         tagInput={tagInput}
         setTagInput={setTagInput}
         peopleInput={peopleInput}
@@ -371,6 +542,16 @@ export function GalleryPage() {
           setPage={setCurrentPage}
           photosLoading={photosLoading}
         />
+
+        <div style={{ display: "flex", "justify-content": "center" }}>
+          <button
+            type="button"
+            class="ghost"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
+            Back to top
+          </button>
+        </div>
       </section>
 
       {/* Photo Viewer Modal */}

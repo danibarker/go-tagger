@@ -146,15 +146,25 @@ export function Gallery(props: GalleryProps) {
   }
 
   return (
-    <Show when={!props.isLoading} fallback={<p>Loading photos…</p>}>
-      <Show
-        when={props.photos.length > 0}
-        fallback={
-          <div>
-            <p>No photos indexed yet. Run the indexer to get started.</p>
-          </div>
-        }
-      >
+    <Show
+      when={props.photos.length > 0}
+      fallback={
+        <Show
+          when={props.isLoading}
+          fallback={
+            <div>
+              <p>No photos indexed yet. Run the indexer to get started.</p>
+            </div>
+          }
+        >
+          <p>Loading photos…</p>
+        </Show>
+      }
+    >
+      <div>
+        <Show when={props.isLoading}>
+          <p>Updating…</p>
+        </Show>
         <div
           ref={galleryRef}
           class="gallery"
@@ -178,7 +188,7 @@ export function Gallery(props: GalleryProps) {
             <div style={getSelectionRectStyle()} />
           </Show>
         </div>
-      </Show>
+      </div>
     </Show>
   );
 }
