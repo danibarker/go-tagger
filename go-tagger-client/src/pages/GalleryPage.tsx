@@ -56,7 +56,8 @@ export function GalleryPage() {
     );
 
     if (f.untagged) {
-      if (photoTags.size > 0) return false;
+      // Match server semantics: "untagged" means no tags AND no people.
+      if (photoTags.size > 0 || photoPeople.size > 0) return false;
     }
 
     if (tagFilter.length > 0) {
