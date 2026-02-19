@@ -11,6 +11,12 @@ export function TopNav() {
           Gallery
         </A>
         <A
+          href="/trash"
+          classList={{ "is-active": location.pathname === "/trash" }}
+        >
+          Trash
+        </A>
+        <A
           href="/upload"
           classList={{ "is-active": location.pathname === "/upload" }}
         >

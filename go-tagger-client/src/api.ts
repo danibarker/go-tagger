@@ -192,6 +192,58 @@ export const deletePhotos = async (photoIds: number[]): Promise<void> => {
   }
 };
 
+export const fetchTrashPhotos = async (
+  page: number,
+  limit: number,
+): Promise<PhotosResponse> => {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  const res = await fetch(`${API_BASE}/api/photos/trash?${params.toString()}`);
+  if (!res.ok) {
+    let message = "Failed to fetch trash";
+    try {
+      const body = await res.json();
+      message = body.error ?? message;
+    } catch {
+      // ignore JSON parse errors and bubble default message
+    }
+    throw new Error(message);
+  }
+
+  return (await res.json()) as PhotosResponse;
+};
+
+export const restorePhotos = async (photoIds: number[]): Promise<void> => {
+  const res = await fetch(`${API_BASE}/api/photos/trash/restore`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ photo_ids: photoIds }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to restore photos");
+  }
+};
+
+export const permanentlyDeletePhotos = async (
+  photoIds: number[],
+): Promise<void> => {
+  const res = await fetch(`${API_BASE}/api/photos/trash`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ photo_ids: photoIds }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to permanently delete photos");
+  }
+};
+
 export const getPerfMonitoring = async (): Promise<{ enabled: boolean }> => {
   const res = await fetch(`${API_BASE}/api/perf-monitoring`);
   if (!res.ok) {
