@@ -83,7 +83,7 @@ export function GalleryPage() {
     photoIds: number[];
     add: string[];
     remove: string[];
-  }): (() => void) => {
+  }): { rollback: () => void; commit: () => void } => {
     const prevPhotos = photos();
 
     const addSet = new Set(change.add.map((s) => s.trim()).filter(Boolean));
@@ -149,12 +149,17 @@ export function GalleryPage() {
       return filtered;
     });
 
-    // If photos fell out of the active filter, backfill in background.
-    if (droppedFromFilter) {
-      setRefreshPhotos((v) => !v);
-    }
-
-    return () => setPhotos(() => prevPhotos);
+    return {
+      rollback: () => setPhotos(() => prevPhotos),
+      commit: () => {
+        // If photos fell out of the active filter, backfill in background.
+        // This must happen *after* the server mutation completes, otherwise
+        // a "show untagged" refresh can bring the photo right back.
+        if (droppedFromFilter) {
+          setRefreshPhotos((v) => !v);
+        }
+      },
+    };
   };
 
   // Single photo delete handler
@@ -543,15 +548,19 @@ export function GalleryPage() {
           photosLoading={photosLoading}
         />
 
-        <div style={{ display: "flex", "justify-content": "center" }}>
-          <button
-            type="button"
-            class="ghost"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          >
-            Back to top
-          </button>
-        </div>
+        <button
+          type="button"
+          class="ghost"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          style={{
+            position: "fixed",
+            right: "1rem",
+            bottom: "1rem",
+            "z-index": 50,
+          }}
+        >
+          Back to top
+        </button>
       </section>
 
       {/* Photo Viewer Modal */}

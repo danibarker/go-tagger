@@ -22,7 +22,7 @@ interface BatchTaggingPanelProps {
     photoIds: number[];
     add: string[];
     remove: string[];
-  }) => void | (() => void);
+  }) => { rollback: () => void; commit: () => void };
   tagInput: () => string;
   setTagInput: Setter<string>;
   peopleInput: () => string;
@@ -169,20 +169,20 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
       return;
     }
 
-    const rollback = props.onApplyChanges({
+    const { rollback, commit } = props.onApplyChanges({
       entity: "tags",
       photoIds: ids,
       add,
       remove,
     });
-    const doRollback = typeof rollback === "function" ? rollback : () => {};
 
     try {
       await batchUpdatePhotoTags(ids, { add, remove });
+      commit();
       props.setTagInput("");
       setTagOverrides(new Map());
     } catch (error) {
-      doRollback();
+      rollback();
       alert(`Failed to update tags: ${error}`);
     }
   };
@@ -217,20 +217,20 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
       return;
     }
 
-    const rollback = props.onApplyChanges({
+    const { rollback, commit } = props.onApplyChanges({
       entity: "people",
       photoIds: ids,
       add,
       remove,
     });
-    const doRollback = typeof rollback === "function" ? rollback : () => {};
 
     try {
       await batchUpdatePhotoPeople(ids, { add, remove });
+      commit();
       props.setPeopleInput("");
       setPeopleOverrides(new Map());
     } catch (error) {
-      doRollback();
+      rollback();
       alert(`Failed to update people: ${error}`);
     }
   };
