@@ -67,6 +67,14 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
     return counts;
   });
 
+  const selectedTagNames = createMemo(() => {
+    const names = Array.from(tagCounts().keys());
+    names.sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
+    return names;
+  });
+
   const peopleCounts = createMemo(() => {
     const counts = new Map<string, number>();
     for (const photo of props.selectedPhotos()) {
@@ -301,6 +309,54 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
               );
             })}
           </div>
+
+          {selectedTotal() > 0 && selectedTagNames().length > 0 && (
+            <div>
+              <label style={{ "margin-top": "0.5rem" }}>
+                Tags on selected photos (click to untag)
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  "flex-wrap": "wrap",
+                  margin: "0.5rem 0",
+                }}
+              >
+                {selectedTagNames().map((tag) => {
+                  const base = baseStateFor(tagCounts(), tag, selectedTotal());
+                  const overrides = tagOverrides();
+                  const override = overrides.get(tag);
+                  const visual = visualStateFor(base, override);
+
+                  return (
+                    <button
+                      type="button"
+                      class={pillClassFor(visual)}
+                      onClick={() => {
+                        const next = new Map(overrides);
+                        if (override === "none") {
+                          next.delete(tag);
+                        } else {
+                          next.set(tag, "none");
+                        }
+                        setTagOverrides(next);
+                      }}
+                      title={
+                        override === "none"
+                          ? "Will be removed (click to undo)"
+                          : base === "all"
+                            ? "On all selected"
+                            : "On some selected"
+                      }
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
         <div class="field-group">
           <label for="batch-people-input">People (comma-separated)</label>
