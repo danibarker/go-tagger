@@ -122,13 +122,37 @@ export function TrashPage() {
     else selectAllOnPage();
   };
 
+  const reconcilePhotosById = (prev: Photo[], next: Photo[]): Photo[] => {
+    if (!Array.isArray(prev) || prev.length === 0) return next;
+    if (!Array.isArray(next) || next.length === 0) return [];
+
+    const prevById = new Map<number, Photo>();
+    for (const p of prev) prevById.set(p.ID, p);
+
+    return next.map((p) => {
+      const existing = prevById.get(p.ID);
+      if (!existing) return p;
+      Object.assign(existing, p);
+      return existing;
+    });
+  };
+
   const loadTrash = async () => {
     setPhotosLoading(true);
     try {
       const res = await fetchTrashPhotos(currentPage(), limit);
-      setPhotos(res.data);
       const pages = Math.max(1, Math.ceil(res.total / limit));
       setTotalPages(pages);
+
+      // If the page became invalid (e.g. after deleting the last item on the
+      // last page), clamp and let the reactive effect refetch.
+      if (currentPage() > pages) {
+        setPhotosLoading(false);
+        setCurrentPage(pages);
+        return;
+      }
+
+      setPhotos((prev) => reconcilePhotosById(prev, res.data));
 
       // Keep selection only for items still visible.
       const visible = new Set(res.data.map((p) => p.ID));

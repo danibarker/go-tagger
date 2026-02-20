@@ -1,4 +1,4 @@
-import { Show, createSignal, createEffect } from "solid-js";
+import { Show, createSignal, createEffect, onCleanup } from "solid-js";
 import { Gallery } from "../components/Gallery";
 import {
   triggerIndexing,
@@ -183,7 +183,7 @@ export function GalleryPage() {
     try {
       await deletePhotos([id]);
       // Background refresh to backfill the page and keep pagination correct.
-      setRefreshPhotos((v) => !v);
+      requestRefreshPhotos();
     } catch (error) {
       // Roll back optimistic update on failure.
       setPhotos(() => prevPhotos);
@@ -209,7 +209,7 @@ export function GalleryPage() {
     try {
       await deletePhotos(ids);
       // Background refresh to backfill and recalc total pages.
-      setRefreshPhotos((v) => !v);
+      requestRefreshPhotos();
     } catch (error) {
       setPhotos(() => prevPhotos);
       setSelectedIds(() => prevSelected);
@@ -357,6 +357,21 @@ export function GalleryPage() {
 
   // Refresh trigger for FilterPanel
   const [refreshPhotos, setRefreshPhotos] = createSignal(false);
+
+  // Debounced refresh: avoids repeated fetches (and resulting grid reflow)
+  // when deleting multiple photos quickly.
+  let refreshTimeoutId: number | undefined;
+  const requestRefreshPhotos = (delayMs = 3000) => {
+    if (refreshTimeoutId !== undefined) window.clearTimeout(refreshTimeoutId);
+    refreshTimeoutId = window.setTimeout(() => {
+      refreshTimeoutId = undefined;
+      setRefreshPhotos((v) => !v);
+    }, delayMs);
+  };
+
+  onCleanup(() => {
+    if (refreshTimeoutId !== undefined) window.clearTimeout(refreshTimeoutId);
+  });
 
   // Fetch initial performance monitoring state
   createEffect(() => {

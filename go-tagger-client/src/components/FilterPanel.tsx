@@ -45,6 +45,26 @@ export function FilterPanel({
   refreshPhotos,
   onFilterChange,
 }: FilterPanelProps) {
+  const reconcilePhotosById = (prev: any[], next: any[]): any[] => {
+    if (!Array.isArray(prev) || prev.length === 0) return next;
+    if (!Array.isArray(next) || next.length === 0) return [];
+
+    const prevById = new Map<number, any>();
+    for (const p of prev) {
+      const id = Number(p?.ID);
+      if (!Number.isNaN(id)) prevById.set(id, p);
+    }
+
+    return next.map((p) => {
+      const id = Number(p?.ID);
+      const existing = !Number.isNaN(id) ? prevById.get(id) : undefined;
+      if (!existing) return p;
+      // Keep object identity stable for Solid's <For>.
+      Object.assign(existing, p);
+      return existing;
+    });
+  };
+
   // Top tags/people state
   const [topTags, setTopTags] = createSignal<string[]>([]);
   const [topPeople, setTopPeople] = createSignal<string[]>([]);
@@ -107,9 +127,20 @@ export function FilterPanel({
       untagged: showUntagged() || undefined,
     })
       .then((result) => {
-        setPhotos(result.data ?? []);
         const total = result.total ?? 0;
-        setTotalPages(total > 0 ? Math.ceil(total / limit()) : 1);
+        const pages = total > 0 ? Math.ceil(total / limit()) : 1;
+        setTotalPages(pages);
+
+        // If the page became invalid (e.g. deleted the last photo on the last
+        // page), don't wipe the gallery with an empty result set. Instead,
+        // clamp to the new last page; the effect will rerun and fetch again.
+        if (page() > pages) {
+          setPhotosLoading(false);
+          setPage(pages);
+          return;
+        }
+
+        setPhotos((prev) => reconcilePhotosById(prev, result.data ?? []));
         setPhotosLoading(false);
       })
       .catch(() => {

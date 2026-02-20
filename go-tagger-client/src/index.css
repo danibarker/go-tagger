@@ -15,6 +15,7 @@
   --color-text: #0f172a;
   --color-text-strong: #1e293b;
   --color-text-muted: #475569;
+  --color-text-accent: var(--color-accent);
   --color-text-on-dark: #f8fafc;
   --color-bg: #e2e8f0;
   --color-bg-gradient-start: #e2e8f0;
@@ -86,11 +87,11 @@
   --color-text: #e2e8f0;
   --color-text-strong: #e2e8f0;
   --color-text-muted: #cbd5e1;
-  --color-text-accent: #77f611;
+  --color-text-accent: var(--color-accent);
   --color-bg: #0f172a;
   --color-bg-gradient-start: #0f172a;
   --color-bg-gradient-end: #1e293b;
-  
+
   --color-surface: #1e293b;
   --color-surface-glass: rgba(15, 23, 42, 0.6);
   --color-surface-soft: #0f172a;
@@ -99,6 +100,24 @@
   --color-border: rgba(148, 163, 184, 0.1);
   --color-border-neutral: rgba(148, 163, 184, 0.1);
   --color-border-subtle: rgba(148, 163, 184, 0.1);
+
+  /* Keep accent-related tokens legible on dark surfaces */
+  --color-accent-text: #c7d2fe;
+  --color-accent-soft: rgba(99, 102, 241, 0.18);
+  --color-accent-soft-strong: rgba(99, 102, 241, 0.28);
+
+  /* Nav + selection need higher contrast in dark */
+  --color-nav-link-bg: rgba(226, 232, 240, 0.08);
+  --color-selection: #60a5fa;
+  --color-selection-soft: rgba(96, 165, 250, 0.18);
+
+  /* Pills (success/warning) should not be blinding in dark */
+  --color-success-bg: rgba(34, 197, 94, 0.18);
+  --color-success-border: rgba(34, 197, 94, 0.55);
+  --color-success-text: #bbf7d0;
+  --color-warning-bg: rgba(234, 179, 8, 0.18);
+  --color-warning-border: rgba(234, 179, 8, 0.55);
+  --color-warning-text: #fde68a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -106,6 +125,7 @@
     --color-text: #e2e8f0;
     --color-text-strong: #e2e8f0;
     --color-text-muted: #cbd5e1;
+    --color-text-accent: var(--color-accent);
     --color-bg: #0f172a;
     --color-bg-gradient-start: #0f172a;
     --color-bg-gradient-end: #1e293b;
@@ -114,10 +134,26 @@
     --color-surface-glass: rgba(15, 23, 42, 0.6);
     --color-surface-soft: #0f172a;
     --color-surface-hover: #1e293b;
+    --color-surface-subtle: #1e1e1e;
 
     --color-border: rgba(148, 163, 184, 0.1);
     --color-border-neutral: rgba(148, 163, 184, 0.1);
     --color-border-subtle: rgba(148, 163, 184, 0.1);
+
+    --color-accent-text: #c7d2fe;
+    --color-accent-soft: rgba(99, 102, 241, 0.18);
+    --color-accent-soft-strong: rgba(99, 102, 241, 0.28);
+
+    --color-nav-link-bg: rgba(226, 232, 240, 0.08);
+    --color-selection: #60a5fa;
+    --color-selection-soft: rgba(96, 165, 250, 0.18);
+
+    --color-success-bg: rgba(34, 197, 94, 0.18);
+    --color-success-border: rgba(34, 197, 94, 0.55);
+    --color-success-text: #bbf7d0;
+    --color-warning-bg: rgba(234, 179, 8, 0.18);
+    --color-warning-border: rgba(234, 179, 8, 0.55);
+    --color-warning-text: #fde68a;
   }
 }
 
