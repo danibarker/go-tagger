@@ -120,8 +120,8 @@ export function TrashGallery(props: TrashGalleryProps) {
       top: `${Math.min(start.y, end.y)}px`,
       width: `${Math.abs(end.x - start.x)}px`,
       height: `${Math.abs(end.y - start.y)}px`,
-      border: "2px solid #0066cc",
-      background: "rgba(0, 102, 204, 0.1)",
+      border: "2px solid var(--color-selection)",
+      background: "var(--color-selection-soft)",
       "pointer-events": "none" as const,
       "z-index": 100,
     };

@@ -153,12 +153,14 @@ export function UploadPage() {
         </div>
 
         <Show when={error()}>
-          <p style={{ color: "#b91c1c", "white-space": "pre-line" }}>
+          <p
+            style={{ color: "var(--color-danger)", "white-space": "pre-line" }}
+          >
             {error()}
           </p>
         </Show>
         <Show when={success()}>
-          <p style={{ color: "#166534" }}>{success()}</p>
+          <p style={{ color: "var(--color-success-text)" }}>{success()}</p>
         </Show>
       </section>
     </main>

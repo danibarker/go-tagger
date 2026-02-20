@@ -1,14 +1,123 @@
 :root {
-  font-family: "Inter", "SF Pro Display", system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    "Inter",
+    "SF Pro Display",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   line-height: 1.6;
   font-weight: 400;
-  color: #0f172a;
-  background-color: #e2e8f0;
+  color-scheme: light dark;
+
+  /* Theme tokens (light default) */
+  --color-text: #0f172a;
+  --color-text-strong: #1e293b;
+  --color-text-muted: #475569;
+  --color-text-on-dark: #f8fafc;
+  --color-bg: #e2e8f0;
+  --color-bg-gradient-start: #e2e8f0;
+  --color-bg-gradient-end: #cbd5f5;
+
+  --color-surface: #fff;
+  --color-surface-glass: rgba(255, 255, 255, 0.7);
+  --color-surface-soft: #f8fafc;
+  --color-surface-hover: #f1f5f9;
+  --color-surface-subtle: #f5f5f5;
+
+  --color-border: #cbd5f5;
+  --color-border-neutral: #cbd5e1;
+  --color-border-subtle: #ccc;
+
+  --color-accent: #6366f1;
+  --color-accent-text: #4338ca;
+  --color-accent-soft: rgba(99, 102, 241, 0.1);
+  --color-accent-soft-strong: rgba(99, 102, 241, 0.18);
+  --color-accent-gradient-start: #7c3aed;
+  --color-accent-gradient-end: #6366f1;
+
+  --color-danger: #c00;
+  --color-danger-soft: rgba(239, 68, 68, 0.12);
+  --color-danger-soft-strong: rgba(239, 68, 68, 0.2);
+  --color-danger-text-soft: #f87171;
+
+  --color-success-bg: #dcfce7;
+  --color-success-border: #16a34a;
+  --color-success-text: #166534;
+
+  --color-warning-bg: #fef9c3;
+  --color-warning-border: #ca8a04;
+  --color-warning-text: #854d0e;
+
+  --color-gallery-bg: #0f172a;
+  --color-gallery-pattern-a: #1e293b;
+  --color-gallery-pattern-b: #0f172a;
+  --color-gallery-placeholder-text: #94a3b8;
+  --color-gallery-checkbox-bg: rgba(15, 23, 42, 0.6);
+  --color-gallery-meta-shadow: rgba(0, 0, 0, 0.6);
+
+  --color-overlay-strong: rgba(0, 0, 0, 0.95);
+  --color-overlay: rgba(0, 0, 0, 0.8);
+  --color-overlay-backdrop: rgba(15, 23, 42, 0.6);
+  --color-photo-viewer-header-bg: rgba(15, 23, 42, 0.95);
+
+  --color-nav-link-bg: rgba(15, 23, 42, 0.08);
+
+  --color-selection: #0066cc;
+  --color-selection-soft: rgba(0, 102, 204, 0.1);
+
+  --shadow-nav: 0 10px 30px -20px rgba(15, 23, 42, 0.4);
+  --shadow-panel: 0 20px 60px -30px rgba(15, 23, 42, 0.35);
+  --shadow-selected: 0 12px 35px -15px rgba(99, 102, 241, 0.9);
+  --shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-text-on-media: 0 2px 6px rgba(0, 0, 0, 0.6);
+  --shadow-thumb: 0 0 2px rgba(0, 0, 0, 0.2);
+
+  color: var(--color-text);
+  background-color: var(--color-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="dark"] {
+  --color-text: #e2e8f0;
+  --color-text-strong: #e2e8f0;
+  --color-text-muted: #cbd5e1;
+  --color-bg: #0f172a;
+  --color-bg-gradient-start: #0f172a;
+  --color-bg-gradient-end: #1e293b;
+
+  --color-surface: #1e293b;
+  --color-surface-glass: rgba(15, 23, 42, 0.6);
+  --color-surface-soft: #0f172a;
+  --color-surface-hover: #1e293b;
+
+  --color-border: rgba(148, 163, 184, 0.1);
+  --color-border-neutral: rgba(148, 163, 184, 0.1);
+  --color-border-subtle: rgba(148, 163, 184, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-text: #e2e8f0;
+    --color-text-strong: #e2e8f0;
+    --color-text-muted: #cbd5e1;
+    --color-bg: #0f172a;
+    --color-bg-gradient-start: #0f172a;
+    --color-bg-gradient-end: #1e293b;
+
+    --color-surface: #1e293b;
+    --color-surface-glass: rgba(15, 23, 42, 0.6);
+    --color-surface-soft: #0f172a;
+    --color-surface-hover: #1e293b;
+
+    --color-border: rgba(148, 163, 184, 0.1);
+    --color-border-neutral: rgba(148, 163, 184, 0.1);
+    --color-border-subtle: rgba(148, 163, 184, 0.1);
+  }
 }
 
 * {
@@ -18,7 +127,11 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(120deg, #e2e8f0, #cbd5f5);
+  background: linear-gradient(
+    120deg,
+    var(--color-bg-gradient-start),
+    var(--color-bg-gradient-end)
+  );
 }
 
 #root {

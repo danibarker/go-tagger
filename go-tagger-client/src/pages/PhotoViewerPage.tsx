@@ -57,7 +57,7 @@ export function PhotoViewerPage() {
         left: 0,
         right: 0,
         bottom: 0,
-        "background-color": "rgba(0, 0, 0, 0.95)",
+        "background-color": "var(--color-overlay-strong)",
         display: "flex",
         "flex-direction": "column",
         "align-items": "center",
@@ -71,7 +71,7 @@ export function PhotoViewerPage() {
           position: "absolute",
           top: "20px",
           right: "20px",
-          color: "white",
+          color: "var(--color-text-on-dark)",
           "font-size": "2rem",
           cursor: "pointer",
           "z-index": 1001,
@@ -92,11 +92,13 @@ export function PhotoViewerPage() {
         onClick={(e) => e.stopPropagation()}
       >
         <Show when={loading()}>
-          <p style={{ color: "white" }}>Loading...</p>
+          <p style={{ color: "var(--color-text-on-dark)" }}>Loading...</p>
         </Show>
 
         <Show when={error()}>
-          <p style={{ color: "white" }}>Error loading media</p>
+          <p style={{ color: "var(--color-text-on-dark)" }}>
+            Error loading media
+          </p>
         </Show>
 
         <Show when={!loading() && !error()}>

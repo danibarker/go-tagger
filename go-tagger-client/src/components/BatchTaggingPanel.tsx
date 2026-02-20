@@ -11,6 +11,7 @@ import {
 import { AutocompleteInput } from "./AutocompleteInput";
 
 import type { Setter } from "solid-js";
+import { useToast } from "./ToastProvider";
 
 interface BatchTaggingPanelProps {
   toggleBatchPanel: () => void;
@@ -34,6 +35,8 @@ type TriState = "none" | "some" | "all";
 type OverrideState = "none" | "all";
 
 export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
+  const { pushToast } = useToast();
+
   // Top tags/people state
   const [topTags, setTopTags] = createSignal<string[]>([]);
   const [topPeople, setTopPeople] = createSignal<string[]>([]);
@@ -142,7 +145,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
   const handleUpdateTags = async () => {
     const ids = props.selectedPhotoIds();
     if (!ids.length) {
-      alert("No photos selected");
+      pushToast({ kind: "info", message: "No photos selected" });
       return;
     }
 
@@ -165,7 +168,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
     );
 
     if (!add.length && !remove.length) {
-      alert("No tag changes selected");
+      pushToast({ kind: "info", message: "No tag changes selected" });
       return;
     }
 
@@ -183,14 +186,15 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
       setTagOverrides(new Map());
     } catch (error) {
       rollback();
-      alert(`Failed to update tags: ${error}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      pushToast({ kind: "error", message: `Failed to update tags: ${msg}` });
     }
   };
 
   const handleUpdatePeople = async () => {
     const ids = props.selectedPhotoIds();
     if (!ids.length) {
-      alert("No photos selected");
+      pushToast({ kind: "info", message: "No photos selected" });
       return;
     }
 
@@ -213,7 +217,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
     );
 
     if (!add.length && !remove.length) {
-      alert("No people changes selected");
+      pushToast({ kind: "info", message: "No people changes selected" });
       return;
     }
 
@@ -231,7 +235,8 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
       setPeopleOverrides(new Map());
     } catch (error) {
       rollback();
-      alert(`Failed to update people: ${error}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      pushToast({ kind: "error", message: `Failed to update people: ${msg}` });
     }
   };
   // All props are signals or handlers from GalleryPage

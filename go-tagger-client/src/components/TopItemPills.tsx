@@ -20,8 +20,8 @@ export function TopItemPills(props: TopItemPillsProps) {
           style={{
             padding: "0.25rem 0.75rem",
             "border-radius": "999px",
-            border: "1px solid #ccc",
-            background: "#f5f5f5",
+            border: "1px solid var(--color-border-subtle)",
+            background: "var(--color-surface-subtle)",
             cursor: "pointer",
             "font-size": "0.9em",
           }}

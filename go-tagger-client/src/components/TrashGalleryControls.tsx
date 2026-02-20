@@ -37,9 +37,9 @@ export function TrashGalleryControls(props: TrashGalleryControlsProps) {
           type="button"
           onClick={props.onBatchPermanentDelete}
           style={{
-            background: "#fff",
-            color: "#c00",
-            border: "1px solid #c00",
+            background: "var(--color-surface)",
+            color: "var(--color-danger)",
+            border: "1px solid var(--color-danger)",
             "border-radius": "999px",
             padding: "0.25rem 1rem",
             "font-weight": 700,

@@ -73,7 +73,7 @@ export function PageControls({
             width: "4rem",
             padding: "0.25rem 0.5rem",
             "border-radius": "4px",
-            border: "1px solid #ccc",
+            border: "1px solid var(--color-border-subtle)",
             "font-size": "0.95em",
           }}
         />

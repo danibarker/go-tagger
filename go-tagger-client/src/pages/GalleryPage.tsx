@@ -17,9 +17,13 @@ import { PhotoViewerModal } from "./PhotoViewerModal";
 import { AppHeader } from "../components/AppHeader";
 import { GalleryControls } from "../components/GalleryControls";
 import { TopNav } from "../components/TopNav";
+import { useToast } from "../components/ToastProvider";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 export function GalleryPage() {
   console.log("GalleryPage mounted!");
+
+  const { pushToast } = useToast();
 
   type ActiveFilters = {
     tags: string;
@@ -186,7 +190,7 @@ export function GalleryPage() {
       setSelectedIds(() => prevSelected);
       const msg =
         error instanceof Error ? error.message : "Failed to delete photo";
-      alert(msg);
+      pushToast({ kind: "error", message: msg });
     }
   };
 
@@ -213,7 +217,7 @@ export function GalleryPage() {
         error instanceof Error
           ? error.message
           : "Failed to delete selected photos";
-      alert(msg);
+      pushToast({ kind: "error", message: msg });
     }
   };
   const [viewerHash, setViewerHash] = createSignal<string | null>(null);
@@ -369,79 +373,92 @@ export function GalleryPage() {
       await setPerfMonitoring(newValue);
       setPerfMonitoringState(newValue);
     } catch (error) {
-      alert("Failed to toggle performance monitoring");
+      pushToast({
+        kind: "error",
+        message: "Failed to toggle performance monitoring",
+      });
     }
   };
 
   const handleIndexing = async () => {
     try {
       await triggerIndexing();
-      alert(
-        "Indexing started in the background. Please refresh the page in a few moments.",
-      );
+      pushToast({
+        kind: "success",
+        message: "Indexing started in the background. Check back in a moment.",
+      });
     } catch (error) {
-      alert("Failed to start indexing");
+      pushToast({ kind: "error", message: "Failed to start indexing" });
     }
   };
 
   const handleUpdateIndex = async () => {
     try {
       await triggerUpdateIndex();
-      alert(
-        "Index update started. Removed photos will be cleared from the database.",
-      );
+      pushToast({
+        kind: "success",
+        message:
+          "Index update started. Removed photos will be cleared from the database.",
+      });
     } catch (error) {
-      alert("Failed to update index");
+      pushToast({ kind: "error", message: "Failed to update index" });
     }
   };
 
+  const [showResetConfirm, setShowResetConfirm] = createSignal(false);
+  const [resetInProgress, setResetInProgress] = createSignal(false);
+
   const handleResetIndex = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to reset the database and reindex? This will clear all existing photo records and tags.",
-      )
-    ) {
-      return;
-    }
+    setShowResetConfirm(true);
+  };
+
+  const confirmResetIndex = async () => {
+    setResetInProgress(true);
     try {
       await resetAndReindex();
-      alert(
-        "Database reset. Full reindex started in the background. Please refresh the page in a few moments.",
-      );
+      pushToast({
+        kind: "success",
+        message: "Database reset. Full reindex started in the background.",
+      });
       setRefreshPhotos((v) => !v);
+      setShowResetConfirm(false);
     } catch (error) {
-      alert("Failed to reset and reindex");
+      pushToast({ kind: "error", message: "Failed to reset and reindex" });
+    } finally {
+      setResetInProgress(false);
     }
   };
 
   const handleSyncMetadata = async () => {
     try {
       const result = await syncMetadataToFiles();
-      alert(
-        `Successfully synced metadata to ${result.photos_to_sync} files. All tags and people from the database have been written to the actual image files.`,
-      );
+      pushToast({
+        kind: "success",
+        message: `Synced metadata to ${result.photos_to_sync} files.`,
+      });
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
           : "Failed to sync metadata to files";
-      alert(`Error: ${errorMessage}`);
+      pushToast({ kind: "error", message: errorMessage });
     }
   };
 
   const handleImportMetadata = async () => {
     try {
       const result = await importMetadataFromFiles();
-      alert(
-        `Imported metadata for ${result.photos_with_metadata} of ${result.photos_scanned} files.`,
-      );
+      pushToast({
+        kind: "success",
+        message: `Imported metadata for ${result.photos_with_metadata} of ${result.photos_scanned} files.`,
+      });
       setRefreshPhotos((v) => !v);
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
           : "Failed to import metadata from files";
-      alert(`Error: ${errorMessage}`);
+      pushToast({ kind: "error", message: errorMessage });
     }
   };
 
@@ -462,6 +479,19 @@ export function GalleryPage() {
 
   return (
     <main class="app-shell">
+      <ConfirmModal
+        open={showResetConfirm()}
+        title="Reset database and reindex?"
+        message="This will clear all existing photo records and tags."
+        confirmLabel={resetInProgress() ? "Working…" : "Reset and reindex"}
+        cancelLabel="Cancel"
+        onClose={() => {
+          if (!resetInProgress()) setShowResetConfirm(false);
+        }}
+        onConfirm={() => {
+          if (!resetInProgress()) void confirmResetIndex();
+        }}
+      />
       <TopNav />
       <AppHeader
         perfMonitoring={perfMonitoring}

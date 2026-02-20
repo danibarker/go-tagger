@@ -46,7 +46,7 @@ export function PhotoViewerModal(props: {
         left: 0,
         right: 0,
         bottom: 0,
-        "background-color": "rgba(0, 0, 0, 0.95)",
+        "background-color": "var(--color-overlay-strong)",
         display: "flex",
         "flex-direction": "column",
         "align-items": "center",
@@ -60,7 +60,7 @@ export function PhotoViewerModal(props: {
           position: "absolute",
           top: "20px",
           right: "20px",
-          color: "white",
+          color: "var(--color-text-on-dark)",
           "font-size": "2rem",
           cursor: "pointer",
           "z-index": 1001,
@@ -82,7 +82,7 @@ export function PhotoViewerModal(props: {
         onClick={(e) => e.stopPropagation()}
       >
         <Show when={props.loading}>
-          <p style={{ color: "white" }}>Loading...</p>
+          <p style={{ color: "var(--color-text-on-dark)" }}>Loading...</p>
         </Show>
 
         <Show when={!props.loading}>
@@ -114,8 +114,8 @@ export function PhotoViewerModal(props: {
           <Show when={!photoLoading() && photo()}>
             <div
               style={{
-                background: "rgba(0, 0, 0, 0.8)",
-                color: "white",
+                background: "var(--color-overlay)",
+                color: "var(--color-text-on-dark)",
                 padding: "20px",
                 "border-radius": "8px",
                 "max-width": "300px",
@@ -149,7 +149,7 @@ export function PhotoViewerModal(props: {
                     {photo()!.tags!.map((tag) => (
                       <span
                         style={{
-                          background: "#444",
+                          background: "var(--color-gallery-pattern-a)",
                           padding: "3px 8px",
                           "border-radius": "12px",
                           "font-size": "0.85em",
@@ -168,7 +168,7 @@ export function PhotoViewerModal(props: {
                     {photo()!.people!.map((person) => (
                       <span
                         style={{
-                          background: "#444",
+                          background: "var(--color-gallery-pattern-a)",
                           padding: "3px 8px",
                           "border-radius": "12px",
                           "font-size": "0.85em",

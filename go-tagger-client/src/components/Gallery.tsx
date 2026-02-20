@@ -128,8 +128,8 @@ export function Gallery(props: GalleryProps) {
       top: `${Math.min(start.y, end.y)}px`,
       width: `${Math.abs(end.x - start.x)}px`,
       height: `${Math.abs(end.y - start.y)}px`,
-      border: "2px solid #0066cc",
-      background: "rgba(0, 102, 204, 0.1)",
+      border: "2px solid var(--color-selection)",
+      background: "var(--color-selection-soft)",
       "pointer-events": "none" as const,
       "z-index": 100,
     };
@@ -162,9 +162,13 @@ export function Gallery(props: GalleryProps) {
       }
     >
       <div>
-        <Show when={props.isLoading}>
-          <p>Updating…</p>
-        </Show>
+        <div
+          style={{ height: "2rem", display: "flex", "align-items": "center" }}
+        >
+          <Show when={props.isLoading}>
+            <span class="pill">Updating…</span>
+          </Show>
+        </div>
         <div
           ref={galleryRef}
           class="gallery"
