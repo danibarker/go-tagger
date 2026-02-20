@@ -31,7 +31,7 @@
   --color-border-subtle: #ccc;
 
   --color-accent: #6366f1;
-  --color-accent-text: #4338ca;
+  --color-accent-text: #227c00;
   --color-accent-soft: rgba(99, 102, 241, 0.1);
   --color-accent-soft-strong: rgba(99, 102, 241, 0.18);
   --color-accent-gradient-start: #7c3aed;
@@ -86,15 +86,16 @@
   --color-text: #e2e8f0;
   --color-text-strong: #e2e8f0;
   --color-text-muted: #cbd5e1;
+  --color-text-accent: #77f611;
   --color-bg: #0f172a;
   --color-bg-gradient-start: #0f172a;
   --color-bg-gradient-end: #1e293b;
-
+  
   --color-surface: #1e293b;
   --color-surface-glass: rgba(15, 23, 42, 0.6);
   --color-surface-soft: #0f172a;
   --color-surface-hover: #1e293b;
-
+  --color-surface-subtle: #1e1e1e;
   --color-border: rgba(148, 163, 184, 0.1);
   --color-border-neutral: rgba(148, 163, 184, 0.1);
   --color-border-subtle: rgba(148, 163, 184, 0.1);

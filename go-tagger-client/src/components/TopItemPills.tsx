@@ -17,14 +17,6 @@ export function TopItemPills(props: TopItemPillsProps) {
         <button
           type="button"
           class="pill"
-          style={{
-            padding: "0.25rem 0.75rem",
-            "border-radius": "999px",
-            border: "1px solid var(--color-border-subtle)",
-            background: "var(--color-surface-subtle)",
-            cursor: "pointer",
-            "font-size": "0.9em",
-          }}
           onClick={() => props.onItemClick(item)}
         >
           {item}
