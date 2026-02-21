@@ -20,6 +20,22 @@ type photoIDsInput struct {
 	PhotoIDs []uint `json:"photo_ids" binding:"required"`
 }
 
+func splitCSVTrimmed(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
 func HandleGetPhotos(c *gin.Context) {
 	var input models.PaginationInput
 
@@ -64,8 +80,10 @@ func HandleGetPhotos(c *gin.Context) {
 	}
 
 	if input.Tags != "" {
-		tags := strings.Split(input.Tags, ",")
-		if input.TagsOrAnd == "and" {
+		tags := splitCSVTrimmed(input.Tags)
+		if len(tags) == 0 {
+			// ignore empty tag filter
+		} else if input.TagsOrAnd == "and" {
 			for i, tag := range tags {
 				alias := fmt.Sprintf("pt_%d", i)
 				tagAlias := fmt.Sprintf("t_%d", i)
@@ -84,8 +102,10 @@ func HandleGetPhotos(c *gin.Context) {
 			Where("photo_tags.photo_id IS NULL")
 	}
 	if input.People != "" {
-		people := strings.Split(input.People, ",")
-		if input.PeopleOrAnd == "and" {
+		people := splitCSVTrimmed(input.People)
+		if len(people) == 0 {
+			// ignore empty people filter
+		} else if input.PeopleOrAnd == "and" {
 			for i, person := range people {
 				alias := fmt.Sprintf("pp_%d", i)
 				personAlias := fmt.Sprintf("p_%d", i)
@@ -189,8 +209,10 @@ func HandleGetTrashPhotos(c *gin.Context) {
 		query = query.Where("taken_at >= ?", input.AfterTime)
 	}
 	if input.Tags != "" {
-		tags := strings.Split(input.Tags, ",")
-		if input.TagsOrAnd == "and" {
+		tags := splitCSVTrimmed(input.Tags)
+		if len(tags) == 0 {
+			// ignore empty tag filter
+		} else if input.TagsOrAnd == "and" {
 			for i, tag := range tags {
 				alias := fmt.Sprintf("pt_%d", i)
 				tagAlias := fmt.Sprintf("t_%d", i)
@@ -208,8 +230,10 @@ func HandleGetTrashPhotos(c *gin.Context) {
 			Where("photo_tags.photo_id IS NULL")
 	}
 	if input.People != "" {
-		people := strings.Split(input.People, ",")
-		if input.PeopleOrAnd == "and" {
+		people := splitCSVTrimmed(input.People)
+		if len(people) == 0 {
+			// ignore empty people filter
+		} else if input.PeopleOrAnd == "and" {
 			for i, person := range people {
 				alias := fmt.Sprintf("pp_%d", i)
 				personAlias := fmt.Sprintf("p_%d", i)
