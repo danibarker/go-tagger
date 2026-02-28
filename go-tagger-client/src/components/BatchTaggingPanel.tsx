@@ -87,6 +87,14 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
     return counts;
   });
 
+  const selectedPeopleNames = createMemo(() => {
+    const names = Array.from(peopleCounts().keys());
+    names.sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
+    return names;
+  });
+
   const baseStateFor = (
     counts: Map<string, number>,
     name: string,
@@ -412,6 +420,58 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
               );
             })}
           </div>
+
+          {selectedTotal() > 0 && selectedPeopleNames().length > 0 && (
+            <div>
+              <label style={{ "margin-top": "0.5rem" }}>
+                People on selected photos (click to remove)
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  "flex-wrap": "wrap",
+                  margin: "0.5rem 0",
+                }}
+              >
+                {selectedPeopleNames().map((person) => {
+                  const base = baseStateFor(
+                    peopleCounts(),
+                    person,
+                    selectedTotal(),
+                  );
+                  const overrides = peopleOverrides();
+                  const override = overrides.get(person);
+                  const visual = visualStateFor(base, override);
+
+                  return (
+                    <button
+                      type="button"
+                      class={pillClassFor(visual)}
+                      onClick={() => {
+                        const next = new Map(overrides);
+                        if (override === "none") {
+                          next.delete(person);
+                        } else {
+                          next.set(person, "none");
+                        }
+                        setPeopleOverrides(next);
+                      }}
+                      title={
+                        override === "none"
+                          ? "Will be removed (click to undo)"
+                          : base === "all"
+                            ? "On all selected"
+                            : "On some selected"
+                      }
+                    >
+                      {person}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
         <div class="batch-actions">
           <button
