@@ -20,8 +20,10 @@ interface FilterPanelProps {
   onFilterChange?: (filters: {
     tags: string;
     tagsLogic: string;
+    notTags: string;
     people: string;
     peopleLogic: string;
+    notPeople: string;
     name: string;
     fileType: string;
     beforeDate: string;
@@ -80,8 +82,10 @@ export function FilterPanel({
   // Internal filter state
   const [searchTags, setSearchTags] = createSignal("");
   const [tagsLogic, setTagsLogic] = createSignal("and");
+  const [notTags, setNotTags] = createSignal("");
   const [searchPeople, setSearchPeople] = createSignal("");
   const [peopleLogic, setPeopleLogic] = createSignal("and");
+  const [notPeople, setNotPeople] = createSignal("");
   const [searchName, setSearchName] = createSignal("");
   const [fileType, setFileType] = createSignal("any");
   const [beforeDate, setBeforeDate] = createSignal("");
@@ -95,8 +99,10 @@ export function FilterPanel({
     onFilterChange?.({
       tags: searchTags(),
       tagsLogic: tagsLogic(),
+      notTags: notTags(),
       people: searchPeople(),
       peopleLogic: peopleLogic(),
+      notPeople: notPeople(),
       name: searchName(),
       fileType: fileType(),
       beforeDate: beforeDate(),
@@ -116,8 +122,10 @@ export function FilterPanel({
     fetchPhotos(page(), limit(), {
       tags: searchTags() || undefined,
       tagsOrAnd: tagsLogic(),
+      notTags: notTags() || undefined,
       people: searchPeople() || undefined,
       peopleOrAnd: peopleLogic(),
+      notPeople: notPeople() || undefined,
       name: searchName() || undefined,
       fileType: fileType() !== "any" ? fileType() : undefined,
       beforeDate: beforeDate() || undefined,
@@ -156,8 +164,10 @@ export function FilterPanel({
   const handleClear = () => {
     setSearchTags("");
     setTagsLogic("and");
+    setNotTags("");
     setSearchPeople("");
     setPeopleLogic("and");
+    setNotPeople("");
     setSearchName("");
     setFileType("any");
     setBeforeDate("");
@@ -218,6 +228,16 @@ export function FilterPanel({
           <TopItemPills items={topTags()} onItemClick={handleTagClick} />
         </div>
         <div class="field-group">
+          <label for="not-tags">Exclude tags — NOT (comma-separated)</label>
+          <AutocompleteInput
+            id="not-tags"
+            placeholder="vacation, christmas"
+            value={notTags}
+            onValueChange={setNotTags}
+            getSuggestions={getTagSuggestions}
+          />
+        </div>
+        <div class="field-group">
           <label for="search-people">Search by people (comma-separated)</label>
           <div
             style={{ display: "flex", gap: "0.5rem", "align-items": "center" }}
@@ -238,6 +258,16 @@ export function FilterPanel({
             </select>
           </div>
           <TopItemPills items={topPeople()} onItemClick={handlePersonClick} />
+        </div>
+        <div class="field-group">
+          <label for="not-people">Exclude people — NOT (comma-separated)</label>
+          <AutocompleteInput
+            id="not-people"
+            placeholder="John, Mary"
+            value={notPeople}
+            onValueChange={setNotPeople}
+            getSuggestions={getPeopleSuggestions}
+          />
         </div>
         <div class="field-group">
           <label for="search-name">Search by name</label>

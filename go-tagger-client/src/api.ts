@@ -8,8 +8,10 @@ export const fetchPhotos = async (
   filters?: {
     tags?: string;
     tagsOrAnd?: string;
+    notTags?: string;
     people?: string;
     peopleOrAnd?: string;
+    notPeople?: string;
     name?: string;
     fileType?: string;
     beforeDate?: string;
@@ -26,8 +28,10 @@ export const fetchPhotos = async (
 
   if (filters?.tags) params.append("tags", filters.tags);
   if (filters?.tagsOrAnd) params.append("tags_or_and", filters.tagsOrAnd);
+  if (filters?.notTags) params.append("not_tags", filters.notTags);
   if (filters?.people) params.append("people", filters.people);
   if (filters?.peopleOrAnd) params.append("people_or_and", filters.peopleOrAnd);
+  if (filters?.notPeople) params.append("not_people", filters.notPeople);
   if (filters?.name) params.append("name", filters.name);
   if (filters?.fileType) params.append("file_type", filters.fileType);
   if (filters?.beforeDate) params.append("before_date", filters.beforeDate);

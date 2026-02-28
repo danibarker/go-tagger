@@ -123,6 +123,18 @@ func HandleGetPhotos(c *gin.Context) {
 		query = query.Joins("LEFT JOIN photo_people ON photos.id = photo_people.photo_id").
 			Where("photo_people.photo_id IS NULL")
 	}
+	if input.NotTags != "" {
+		notTagsList := splitCSVTrimmed(input.NotTags)
+		if len(notTagsList) > 0 {
+			query = query.Where("photos.id NOT IN (SELECT photo_id FROM photo_tags JOIN tags ON photo_tags.tag_id = tags.id WHERE tags.name IN ?)", notTagsList)
+		}
+	}
+	if input.NotPeople != "" {
+		notPeopleList := splitCSVTrimmed(input.NotPeople)
+		if len(notPeopleList) > 0 {
+			query = query.Where("photos.id NOT IN (SELECT photo_id FROM photo_people JOIN people ON photo_people.person_id = people.id WHERE people.name IN ?)", notPeopleList)
+		}
+	}
 	query.Count(&totalRows)
 
 	// 3. Fetch Paginated Data

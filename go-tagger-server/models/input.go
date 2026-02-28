@@ -15,6 +15,7 @@ type PaginationInput struct {
 	Limit       int    `form:"limit,default=50"`
 	Tags        string `form:"tags"`
 	TagsOrAnd   string `form:"tags_or_and,default=and"` // and or or
+	NotTags     string `form:"not_tags"`
 	Name        string `form:"name"`
 	FileType    string `form:"file_type,default=any"` // any, image or video
 	BeforeDate  string `form:"before_date"`
@@ -23,5 +24,6 @@ type PaginationInput struct {
 	AfterTime   string `form:"after_time"`
 	People      string `form:"people"`
 	PeopleOrAnd string `form:"people_or_and,default=and"` // and or or
+	NotPeople   string `form:"not_people"`
 	Untagged    bool   `form:"untagged"`
 }

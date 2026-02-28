@@ -28,16 +28,20 @@ export function GalleryPage() {
   type ActiveFilters = {
     tags: string;
     tagsLogic: string;
+    notTags: string;
     people: string;
     peopleLogic: string;
+    notPeople: string;
     untagged: boolean;
   };
 
   const [activeFilters, setActiveFilters] = createSignal<ActiveFilters>({
     tags: "",
     tagsLogic: "and",
+    notTags: "",
     people: "",
     peopleLogic: "and",
+    notPeople: "",
     untagged: false,
   });
 
@@ -72,12 +76,22 @@ export function GalleryPage() {
       }
     }
 
+    const notTagFilter = parseCsv(f.notTags).map((t) => t.toLowerCase());
+    if (notTagFilter.length > 0) {
+      if (notTagFilter.some((t) => photoTags.has(t))) return false;
+    }
+
     if (peopleFilter.length > 0) {
       if (f.peopleLogic === "or") {
         if (!peopleFilter.some((p) => photoPeople.has(p))) return false;
       } else {
         if (!peopleFilter.every((p) => photoPeople.has(p))) return false;
       }
+    }
+
+    const notPeopleFilter = parseCsv(f.notPeople).map((p) => p.toLowerCase());
+    if (notPeopleFilter.length > 0) {
+      if (notPeopleFilter.some((p) => photoPeople.has(p))) return false;
     }
 
     return true;
@@ -533,8 +547,10 @@ export function GalleryPage() {
           setActiveFilters({
             tags: filters.tags,
             tagsLogic: filters.tagsLogic,
+            notTags: filters.notTags,
             people: filters.people,
             peopleLogic: filters.peopleLogic,
+            notPeople: filters.notPeople,
             untagged: filters.untagged,
           })
         }
