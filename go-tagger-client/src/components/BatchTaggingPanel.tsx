@@ -28,6 +28,7 @@ interface BatchTaggingPanelProps {
   setTagInput: Setter<string>;
   peopleInput: () => string;
   setPeopleInput: Setter<string>;
+  onClearSelection: () => void;
   children?: any;
 }
 
@@ -192,6 +193,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
       commit();
       props.setTagInput("");
       setTagOverrides(new Map());
+      props.onClearSelection();
     } catch (error) {
       rollback();
       const msg = error instanceof Error ? error.message : String(error);
@@ -241,6 +243,7 @@ export function BatchTaggingPanel(props: BatchTaggingPanelProps) {
       commit();
       props.setPeopleInput("");
       setPeopleOverrides(new Map());
+      props.onClearSelection();
     } catch (error) {
       rollback();
       const msg = error instanceof Error ? error.message : String(error);

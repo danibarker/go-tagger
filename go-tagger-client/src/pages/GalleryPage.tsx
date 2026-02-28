@@ -564,6 +564,7 @@ export function GalleryPage() {
         setTagInput={setTagInput}
         peopleInput={peopleInput}
         setPeopleInput={setPeopleInput}
+        onClearSelection={clearSelection}
         showBatchPanel={showBatchPanel}
         toggleBatchPanel={toggleBatchPanel}
       />
