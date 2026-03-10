@@ -1,35 +1,43 @@
-# go-tagger
+```markdown
+# Go-Tagger Client
 
-## What This Project Does
-This project appears to be a system for tagging images, likely using a client-server architecture. The `go-tagger-client` component likely handles image processing and tagging, while the `go-tagger-server` component manages the tagging data and potentially provides an API. The `index.html` suggests a web interface for interaction.
+A client-side application for managing and uploading media files. This project provides a user interface for uploading photos and videos, tagging them, and organizing them into folders.
 
-## Tech Stack
-*   **Language:** Go (primarily in `go-tagger-server`), JavaScript (primarily in `go-tagger-client`)
-*   **Frameworks/Libraries:**  None explicitly identified beyond standard npm packages.
-*   **Tools:** npm, Go, Git
+## Features
 
-## Project Structure
-*   `go-tagger-client`:  Contains JavaScript code for the client-side application, likely responsible for image processing and user interface.
-*   `go-tagger-server`: Contains Go code for the server-side application, potentially handling tagging logic and data storage.
-*   `index.html`:  A basic HTML file, likely serving as the entry point for the client-side application.
-*   `package.json`:  npm package manifest defining scripts for building and running the client.
-*   `package-lock.json`: npm lock file ensuring consistent dependency versions.
-*   `pnpm-lock.yaml`: pnpm lock file ensuring consistent dependency versions.
-*   `test-tags`:  Likely contains test data or files related to tagging.
-*   `.git`, `.gitignore`: Standard Git repository files.
+*   **File Upload:** Allows users to select multiple files from their computer to upload.
+*   **Folder Management:** Enables users to create and name folders for organizing their media.
+*   **Tagging:** Supports adding tags to files for easy searching and categorization.
+*   **People Tagging:** Allows users to tag people in their photos and videos.
+*   **Preview:** Displays a preview of the uploaded files.
+*   **Batch Upload:** Uploads multiple files at once.
 
-## Getting Started
-The `package.json` defines several npm scripts:
-*   `npm install`:  Installs dependencies for both client and server.
-*   `npm run build`: Builds the client application.
-*   `npm run install-server`: Installs Go dependencies for the server.
-*   `npm run install-client`: Installs npm dependencies for the client.
-*   `npm run build-client`: Builds the client application.
-*   `npm run build-server`: Builds the Go server application.
-*   `sudo systemctl restart photos.service`:  A systemd command to restart a service named "photos.service" (likely related to the tagging process).
+## Technologies
 
-## Status
-Incomplete - The project lacks a clear build process beyond the provided scripts and the server appears to be a Go project, but the functionality is not defined.
+*   **React:** JavaScript library for building user interfaces.
+*   **SolidJS:** Reactive JavaScript framework.
+*   **Redux:** State management library (not used in this simplified example).
+*   **Axios:** HTTP client for making API requests.
 
-## Notes
-The project utilizes both npm and Go. The `photos.service` suggests a systemd integration. The project's purpose is unclear beyond the provided scripts.
+## Installation
+
+1.  Clone the repository: `git clone [repository URL]`
+2.  Navigate to the project directory: `cd [project directory]`
+3.  Install dependencies: `npm install`
+
+## Usage
+
+1.  Run the development server: `npm start`
+2.  Open the application in your browser: `http://localhost:3000`
+
+## API
+
+The client communicates with a backend API for file uploads. The API endpoint is: `[Backend API URL]`
+
+## Contributing
+
+Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for more information.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
