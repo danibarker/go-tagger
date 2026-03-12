@@ -164,6 +164,27 @@ func GenerateImageThumbnail(imagePath, thumbnailPath string) error {
 	return nil
 }
 
+// GenerateImageThumbnailHeic uses sips (macOS built-in) to generate a thumbnail from a HEIC file.
+func GenerateImageThumbnailHeic(imagePath, thumbnailPath string) error {
+	cmd := exec.Command("sips", "-s", "format", "jpeg", "--resampleWidth", "300", imagePath, "--out", thumbnailPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("sips error: %v, output: %s", err, string(output))
+	}
+	return nil
+}
+
+// ConvertHeicToJpeg converts a HEIC file to JPEG at full resolution using sips (macOS built-in).
+// The converted file is cached to destPath on first call and reused thereafter.
+func ConvertHeicToJpeg(imagePath, destPath string) error {
+	cmd := exec.Command("sips", "-s", "format", "jpeg", imagePath, "--out", destPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("sips error: %v, output: %s", err, string(output))
+	}
+	return nil
+}
+
 // GenerateVideoThumbnail uses ffmpeg to extract a thumbnail from a video file
 func GenerateVideoThumbnail(videoPath, thumbnailPath string) error {
 	// Use ffmpeg to extract a frame at 1 second into the video

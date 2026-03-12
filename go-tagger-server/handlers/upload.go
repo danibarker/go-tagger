@@ -142,6 +142,10 @@ func HandleUploadPhotos(c *gin.Context) {
 				if err := services.GenerateImageThumbnailFFmpeg(destinationPath, thumbPath); err != nil {
 					errors = append(errors, fmt.Sprintf("%s: thumbnail failed (%v)", safeName, err))
 				}
+			} else if ext == ".heic" {
+				if err := services.GenerateImageThumbnailHeic(destinationPath, thumbPath); err != nil {
+					errors = append(errors, fmt.Sprintf("%s: thumbnail failed (%v)", safeName, err))
+				}
 			} else {
 				if err := services.GenerateImageThumbnail(destinationPath, thumbPath); err != nil {
 					errors = append(errors, fmt.Sprintf("%s: thumbnail failed (%v)", safeName, err))

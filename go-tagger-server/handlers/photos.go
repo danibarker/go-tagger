@@ -446,8 +446,43 @@ func HandleServeOriginalPhoto(c *gin.Context) {
 	}
 	resolvedPath := services.ResolvePhotoPath(photo.FilePath)
 
+	// HEIC files must be converted to JPEG for browser display
+	origExt := strings.ToLower(filepath.Ext(resolvedPath))
+	if origExt == ".heic" {
+		// For HEAD requests the viewer only needs to know it's not a video
+		if c.Request.Method == http.MethodHead {
+			c.Header("Content-Type", "image/jpeg")
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			c.Status(http.StatusOK)
+			return
+		}
+		fullresPath := filepath.Join(services.ThumbnailRoot, hash+"_orig.jpg")
+		if _, statErr := os.Stat(fullresPath); os.IsNotExist(statErr) {
+			if convErr := services.ConvertHeicToJpeg(resolvedPath, fullresPath); convErr != nil {
+				log.Printf("heic full-res conversion failed: hash=%s err=%v", hash, convErr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to convert HEIC"})
+				return
+			}
+		}
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.Header("Content-Type", "image/jpeg")
+		f, err := os.Open(fullresPath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open converted file"})
+			return
+		}
+		defer f.Close()
+		fi, err := f.Stat()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to stat converted file"})
+			return
+		}
+		http.ServeContent(c.Writer, c.Request, fi.Name(), fi.ModTime(), f)
+		return
+	}
+
 	// Set appropriate Content-Type based on file extension
-	ext := strings.ToLower(filepath.Ext(resolvedPath))
+	ext := origExt
 	var contentType string
 	switch ext {
 	case ".mp4":
@@ -543,6 +578,12 @@ func HandleServeThumbnail(c *gin.Context) {
 			if ext == ".webp" {
 				if err := services.GenerateImageThumbnailFFmpeg(resolvedPath, thumbPath); err != nil {
 					log.Printf("thumbnail generate failed (webp): hash=%s path=%s src=%s err=%v", hash, thumbPath, resolvedPath, err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate thumbnail"})
+					return
+				}
+			} else if ext == ".heic" {
+				if err := services.GenerateImageThumbnailHeic(resolvedPath, thumbPath); err != nil {
+					log.Printf("thumbnail generate failed (heic): hash=%s path=%s src=%s err=%v", hash, thumbPath, resolvedPath, err)
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate thumbnail"})
 					return
 				}
