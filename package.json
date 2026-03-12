@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "journalctl -u photos.service -n 50 --no-pager",
     "install-server": "cd go-tagger-server && go mod tidy",
     "install-client": "cd go-tagger-client && npm install --no-bin-links",
     "build-client": "cd go-tagger-client && npm run build",
