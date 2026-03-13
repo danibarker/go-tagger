@@ -136,7 +136,7 @@ func GenerateImageThumbnailFFmpeg(imagePath, thumbnailPath string) error {
 	// -i: input file
 	// -vf scale=300:-1: resize to width 300, maintain aspect ratio
 	// -frames:v 1: extract only 1 frame (for animated formats)
-	cmd := exec.Command("ffmpeg",
+	cmd := exec.Command(ffmpegBinary,
 		"-i", imagePath,
 		"-vf", "scale=300:-1",
 		"-frames:v", "1",
@@ -164,12 +164,36 @@ func GenerateImageThumbnail(imagePath, thumbnailPath string) error {
 	return nil
 }
 
+// resolveCmd returns the full path of a binary, checking well-known fallback
+// directories (e.g. Linuxbrew) when the systemd service PATH is restricted.
+func resolveCmd(name string, fallbackDirs ...string) string {
+	if path, err := exec.LookPath(name); err == nil {
+		return path
+	}
+	for _, dir := range fallbackDirs {
+		full := filepath.Join(dir, name)
+		if _, err := os.Stat(full); err == nil {
+			return full
+		}
+	}
+	return name // best-effort: let the OS return a useful error
+}
+
+var (
+	brewBin      = "/home/linuxbrew/.linuxbrew/bin"
+	magickBinary = resolveCmd("magick", brewBin, "/usr/local/bin", "/usr/bin")
+	ffmpegBinary = resolveCmd("ffmpeg", brewBin, "/usr/local/bin", "/usr/bin")
+)
+
+// imageMagickCmd returns the resolved ImageMagick binary path.
+func imageMagickCmd() string { return magickBinary }
+
 // GenerateImageThumbnailHeic uses ImageMagick to generate a thumbnail from a HEIC file.
 func GenerateImageThumbnailHeic(imagePath, thumbnailPath string) error {
-	cmd := exec.Command("magick", imagePath+"[0]", "-resize", "300x", thumbnailPath)
+	cmd := exec.Command(imageMagickCmd(), imagePath+"[0]", "-resize", "300x", thumbnailPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("magick error: %v, output: %s", err, string(output))
+		return fmt.Errorf("imagemagick error: %v, output: %s", err, string(output))
 	}
 	return nil
 }
@@ -177,35 +201,36 @@ func GenerateImageThumbnailHeic(imagePath, thumbnailPath string) error {
 // ConvertHeicToJpeg converts a HEIC file to JPEG at full resolution using ImageMagick.
 // The converted file is cached to destPath on first call and reused thereafter.
 func ConvertHeicToJpeg(imagePath, destPath string) error {
-	cmd := exec.Command("magick", imagePath+"[0]", destPath)
+	cmd := exec.Command(imageMagickCmd(), imagePath+"[0]", destPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("magick error: %v, output: %s", err, string(output))
+		return fmt.Errorf("imagemagick error: %v, output: %s", err, string(output))
 	}
 	return nil
 }
 
 // GenerateVideoThumbnail uses ffmpeg to extract a thumbnail from a video file
 func GenerateVideoThumbnail(videoPath, thumbnailPath string) error {
-	// Use ffmpeg to extract a frame at 1 second into the video
-	// -i: input file
-	// -ss: seek to position (1 second)
-	// -vframes 1: extract only 1 frame
-	// -vf scale=300:-1: resize to width 300, maintain aspect ratio
-	cmd := exec.Command("ffmpeg",
-		"-i", videoPath,
-		"-ss", "00:00:01",
-		"-vframes", "1",
-		"-vf", "scale=300:-1",
-		"-y", // Overwrite output file if exists
-		thumbnailPath,
-	)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("ffmpeg error: %v, output: %s", err, string(output))
+	// -ss before -i = fast input seek; try 1s first, fall back to 0s for short videos
+	for _, seek := range []string{"00:00:01", "00:00:00"} {
+		cmd := exec.Command(ffmpegBinary,
+			"-ss", seek,
+			"-i", videoPath,
+			"-vframes", "1",
+			"-vf", "scale=300:-2,format=yuv420p",
+			"-y",
+			thumbnailPath,
+		)
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			if info, statErr := os.Stat(thumbnailPath); statErr == nil && info.Size() > 0 {
+				return nil
+			}
+		} else {
+			log.Printf("ffmpeg seek=%s failed: %v, output: %s", seek, err, string(output))
+		}
 	}
-	return nil
+	return fmt.Errorf("ffmpeg failed to extract a frame from %s", videoPath)
 }
 
 // IndexFiles scans the PhotoRoot and populates the database.

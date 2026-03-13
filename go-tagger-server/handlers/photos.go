@@ -564,6 +564,11 @@ func HandleServeThumbnail(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "thumbnail not found"})
 			return
 		}
+		if err := os.MkdirAll(services.ThumbnailRoot, 0755); err != nil {
+			log.Printf("thumbnail dir create failed: path=%s err=%v", services.ThumbnailRoot, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "thumbnail directory unavailable"})
+			return
+		}
 		// Find the photo by hash to get the original file path
 		var photo models.Photo
 		if err := db.DB.Where("file_hash = ?", hash).First(&photo).Error; err != nil {
