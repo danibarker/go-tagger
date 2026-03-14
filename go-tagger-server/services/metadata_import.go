@@ -65,7 +65,7 @@ func ImportMetadataFromFiles() (int, int, error) {
 		tagNameToID := make(map[string]uint)
 		for tagName := range tagSet {
 			var tag models.Tag
-			if err := tx.FirstOrCreate(&tag, models.Tag{Name: tagName}).Error; err != nil {
+			if err := db.DB.FirstOrCreate(&tag, models.Tag{Name: tagName}).Error; err != nil {
 				return err
 			}
 			tagNameToID[tagName] = tag.ID
@@ -74,7 +74,7 @@ func ImportMetadataFromFiles() (int, int, error) {
 		personNameToID := make(map[string]uint)
 		for personName := range peopleSet {
 			var person models.Person
-			if err := tx.FirstOrCreate(&person, models.Person{Name: personName}).Error; err != nil {
+			if err := db.DB.FirstOrCreate(&person, models.Person{Name: personName}).Error; err != nil {
 				return err
 			}
 			personNameToID[personName] = person.ID
