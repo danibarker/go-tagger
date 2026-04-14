@@ -466,7 +466,7 @@ func IndexFiles() {
 	var wg sync.WaitGroup
 
 	// Start worker goroutines
-	numWorkers := 20 // Process 20 files concurrently
+	numWorkers := 6 // Process 20 files concurrently
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
