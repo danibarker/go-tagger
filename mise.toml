@@ -1,0 +1,33 @@
+[tasks.install]
+description = "Install client and server dependencies"
+run = [
+"cd go-tagger-client && pnpm install",
+"cd go-tagger-server && go mod download"
+]
+
+[tasks.build]
+description = "Build client and server from repo root"
+run = [
+"cd go-tagger-client && pnpm build",
+"cd go-tagger-server && go build ./..."
+]
+
+[tasks.start]
+description = "Start photos service"
+run = "sudo systemctl start photos.service"
+
+[tasks.restart]
+description = "Restart photos service"
+run = "sudo systemctl restart photos.service"
+
+[tasks.stop]
+description = "Stop photos service"
+run = "sudo systemctl stop photos.service"
+
+[tasks.status]
+description = "Show photos service status"
+run = "sudo systemctl status photos.service"
+
+[tasks.logs]
+description = "Show latest photos service logs"
+run = "journalctl -u photos.service -n 50 --no-pager"
