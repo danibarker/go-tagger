@@ -6,6 +6,7 @@ type PhotoCardProps = {
   photo: Photo;
   index: number;
   isSelected: () => boolean;
+  isFocused: () => boolean;
   onToggleSelection: (id: number) => void;
   onPhotoClick: (id: number, index: number, shiftKey: boolean) => void;
   currentPage: number;
@@ -15,7 +16,7 @@ type PhotoCardProps = {
 export function PhotoCard(props: PhotoCardProps) {
   return (
     <div
-      class={`gallery__item ${props.isSelected() ? "is-selected" : ""}`}
+      class={`gallery__item ${props.isSelected() ? "is-selected" : ""} ${props.isFocused() ? "is-focused" : ""}`}
       onClick={() => (window.location.hash = props.photo.file_hash)}
       style={{ position: "relative", cursor: "pointer" }}
     >

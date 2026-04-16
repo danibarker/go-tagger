@@ -286,6 +286,10 @@ button.ghost:disabled {
     box-shadow 0.15s ease;
 }
 
+.gallery__item.is-focused {
+  box-shadow: 0 0 0 3px var(--color-accent);
+}
+
 .gallery__item img,
 .gallery__placeholder {
   width: 100%;

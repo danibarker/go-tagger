@@ -1,6 +1,12 @@
 import { createEffect, createSignal, Show } from "solid-js";
 import type { Photo } from "../types";
 
+const getFileName = (filePath: string): string => {
+  const normalized = filePath.replace(/\\/g, "/");
+  const segments = normalized.split("/").filter(Boolean);
+  return segments.length > 0 ? segments[segments.length - 1] : filePath;
+};
+
 export function PhotoViewerModal(props: {
   hash: string;
   isVideo: boolean;
@@ -86,7 +92,9 @@ export function PhotoViewerModal(props: {
         </Show>
 
         <Show when={!props.loading}>
-          <div style={{ flex: "1", display: "flex", "justify-content": "center" }}>
+          <div
+            style={{ flex: "1", display: "flex", "justify-content": "center" }}
+          >
             <Show
               when={props.isVideo}
               fallback={
@@ -110,7 +118,7 @@ export function PhotoViewerModal(props: {
               </video>
             </Show>
           </div>
-          
+
           <Show when={!photoLoading() && photo()}>
             <div
               style={{
@@ -125,7 +133,12 @@ export function PhotoViewerModal(props: {
             >
               <h3 style={{ "margin-top": "0" }}>Details</h3>
               <div style={{ "font-size": "0.9em", "line-height": "1.6" }}>
-                <p><strong>File:</strong> {photo()!.file_path}</p>
+                <p>
+                  <strong>Filename:</strong> {getFileName(photo()!.file_path)}
+                </p>
+                <p>
+                  <strong>Path:</strong> {photo()!.file_path}
+                </p>
                 <p>
                   <strong>Size:</strong>{" "}
                   {photo()!.file_size > 1024 * 1024
@@ -133,7 +146,8 @@ export function PhotoViewerModal(props: {
                     : `${(photo()!.file_size / 1024).toFixed(2)} KB`}
                 </p>
                 <p>
-                  <strong>Dimensions:</strong> {photo()!.width} × {photo()!.height}
+                  <strong>Dimensions:</strong> {photo()!.width} ×{" "}
+                  {photo()!.height}
                 </p>
                 <Show when={photo()!.taken_at}>
                   <p>
@@ -145,7 +159,14 @@ export function PhotoViewerModal(props: {
                   <p>
                     <strong>Tags:</strong>
                   </p>
-                  <div style={{ display: "flex", "flex-wrap": "wrap", gap: "5px", "margin-bottom": "10px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      "flex-wrap": "wrap",
+                      gap: "5px",
+                      "margin-bottom": "10px",
+                    }}
+                  >
                     {photo()!.tags!.map((tag) => (
                       <span
                         style={{
@@ -164,7 +185,9 @@ export function PhotoViewerModal(props: {
                   <p>
                     <strong>People:</strong>
                   </p>
-                  <div style={{ display: "flex", "flex-wrap": "wrap", gap: "5px" }}>
+                  <div
+                    style={{ display: "flex", "flex-wrap": "wrap", gap: "5px" }}
+                  >
                     {photo()!.people!.map((person) => (
                       <span
                         style={{

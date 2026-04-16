@@ -289,6 +289,11 @@ export function GalleryPage() {
   const [tagInput, setTagInput] = createSignal("");
   const [peopleInput, setPeopleInput] = createSignal("");
   const [selectedIds, setSelectedIds] = createSignal<Set<number>>(new Set());
+  const [focusedIds, setFocusedIds] = createSignal<Set<number>>(new Set());
+  const [focusedIndex, setFocusedIndex] = createSignal<number | null>(null);
+  const [focusAnchorIndex, setFocusAnchorIndex] = createSignal<number | null>(
+    null,
+  );
   const [lastClickedIndex, setLastClickedIndex] = createSignal<number | null>(
     null,
   );
@@ -327,10 +332,16 @@ export function GalleryPage() {
         rangeIds.forEach((id) => next.add(id));
         return next;
       });
+
+      setFocusedIds(() => new Set(rangeIds));
+      setFocusAnchorIndex(start);
     } else {
       // Regular click: toggle
       toggleSelection(id);
+      setFocusedIds(() => new Set([id]));
+      setFocusAnchorIndex(index);
     }
+    setFocusedIndex(index);
     setLastClickedIndex(index);
   };
 
@@ -343,6 +354,200 @@ export function GalleryPage() {
   };
 
   const clearSelection = () => setSelectedIds(() => new Set<number>());
+
+  const getGalleryColumnCount = () => {
+    const items = Array.from(
+      document.querySelectorAll<HTMLElement>(".gallery .gallery__item"),
+    );
+    if (items.length <= 1) return 1;
+
+    const firstTop = items[0].getBoundingClientRect().top;
+    let count = 1;
+    for (let i = 1; i < items.length; i += 1) {
+      const top = items[i].getBoundingClientRect().top;
+      if (Math.abs(top - firstTop) < 2) {
+        count += 1;
+      } else {
+        break;
+      }
+    }
+    return Math.max(1, count);
+  };
+
+  const clampIndex = (index: number) => {
+    if (photos().length === 0) return 0;
+    return Math.max(0, Math.min(index, photos().length - 1));
+  };
+
+  const getRangePhotoIds = (start: number, end: number): number[] => {
+    const from = Math.min(start, end);
+    const to = Math.max(start, end);
+    return photos()
+      .slice(from, to + 1)
+      .map((p) => p.ID);
+  };
+
+  const isTypingTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    const tag = target.tagName.toLowerCase();
+    return (
+      tag === "input" ||
+      tag === "textarea" ||
+      tag === "select" ||
+      target.isContentEditable
+    );
+  };
+
+  const applyFocusMove = (
+    nextIndex: number,
+    modifiers: { shift: boolean; meta: boolean },
+  ) => {
+    const nextPhoto = photos()[nextIndex];
+    if (!nextPhoto) return;
+
+    if (!modifiers.shift && !modifiers.meta) {
+      setFocusedIds(() => new Set([nextPhoto.ID]));
+      setFocusAnchorIndex(nextIndex);
+    } else if (modifiers.shift) {
+      const anchor = focusAnchorIndex() ?? focusedIndex() ?? nextIndex;
+      const rangeIds = getRangePhotoIds(anchor, nextIndex);
+      if (modifiers.meta) {
+        setFocusedIds((prev) => {
+          const next = new Set(prev);
+          rangeIds.forEach((id) => next.add(id));
+          return next;
+        });
+      } else {
+        setFocusedIds(() => new Set(rangeIds));
+      }
+      if (focusAnchorIndex() === null) {
+        setFocusAnchorIndex(anchor);
+      }
+    } else if (modifiers.meta) {
+      setFocusedIds((prev) => {
+        const next = new Set(prev);
+        next.add(nextPhoto.ID);
+        return next;
+      });
+      setFocusAnchorIndex(nextIndex);
+    }
+
+    setFocusedIndex(nextIndex);
+  };
+
+  const toggleActiveSelectionFromFocus = () => {
+    let focusIds = Array.from(focusedIds());
+    if (focusIds.length === 0 && focusedIndex() !== null) {
+      const photo = photos()[focusedIndex()!];
+      if (photo) focusIds = [photo.ID];
+    }
+
+    if (focusIds.length === 0) return;
+
+    const everyFocusedSelected = focusIds.every((id) => selectedIds().has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (everyFocusedSelected) {
+        focusIds.forEach((id) => next.delete(id));
+      } else {
+        focusIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const navigateViewerByIndex = (index: number) => {
+    const clamped = clampIndex(index);
+    const target = photos()[clamped];
+    if (!target) return;
+    window.location.hash = target.file_hash;
+  };
+
+  const navigateViewerByDelta = (delta: number) => {
+    const hash = viewerHash();
+    if (!hash) return;
+    const idx = photos().findIndex((p) => p.file_hash === hash);
+    if (idx === -1) return;
+    navigateViewerByIndex(idx + delta);
+  };
+
+  const navigateViewerByRow = (rows: number) => {
+    const columns = getGalleryColumnCount();
+    navigateViewerByDelta(rows * columns);
+  };
+
+  const handleGalleryKeyboard = (e: KeyboardEvent) => {
+    if (isTypingTarget(e.target)) return;
+
+    if (viewerHash()) {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        navigateViewerByDelta(-1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        navigateViewerByDelta(1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        navigateViewerByRow(-1);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        navigateViewerByRow(1);
+      }
+      return;
+    }
+
+    if (photos().length === 0) return;
+
+    if (e.key === " ") {
+      e.preventDefault();
+      toggleActiveSelectionFromFocus();
+      return;
+    }
+
+    const columns = getGalleryColumnCount();
+    let delta: number | null = null;
+
+    if (e.key === "ArrowLeft") delta = -1;
+    if (e.key === "ArrowRight") delta = 1;
+    if (e.key === "ArrowUp") delta = -columns;
+    if (e.key === "ArrowDown") delta = columns;
+
+    if (delta === null) return;
+
+    e.preventDefault();
+    const current = focusedIndex() ?? 0;
+    const next = clampIndex(current + delta);
+    applyFocusMove(next, { shift: e.shiftKey, meta: e.metaKey || e.ctrlKey });
+  };
+
+  createEffect(() => {
+    window.addEventListener("keydown", handleGalleryKeyboard);
+    return () => window.removeEventListener("keydown", handleGalleryKeyboard);
+  });
+
+  createEffect(() => {
+    const idsOnPage = new Set(photos().map((p) => p.ID));
+    setFocusedIds((prev) => {
+      const next = new Set<number>();
+      prev.forEach((id) => {
+        if (idsOnPage.has(id)) next.add(id);
+      });
+      return next;
+    });
+
+    if (photos().length === 0) {
+      setFocusedIndex(null);
+      setFocusAnchorIndex(null);
+      return;
+    }
+
+    const idx = focusedIndex();
+    if (idx === null || idx >= photos().length) {
+      setFocusedIndex(0);
+      setFocusAnchorIndex(0);
+      setFocusedIds(() => new Set([photos()[0].ID]));
+    }
+  });
 
   const selectAllOnPage = () => {
     const photoIds = photos().map((p) => p.ID);
@@ -595,6 +800,7 @@ export function GalleryPage() {
             <Gallery
               photos={photos()}
               selectedIds={selectedIds}
+              focusedIds={focusedIds}
               onToggleSelection={toggleSelection}
               onPhotoClick={handlePhotoClick}
               onSelectMultiple={selectMultiple}

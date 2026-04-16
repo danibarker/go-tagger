@@ -5,6 +5,7 @@ import type { Photo } from "../types";
 type GalleryProps = {
   photos: Photo[];
   selectedIds: () => Set<number>;
+  focusedIds: () => Set<number>;
   onToggleSelection: (id: number) => void;
   onPhotoClick: (id: number, index: number, shiftKey: boolean) => void;
   onSelectMultiple: (ids: number[]) => void;
@@ -181,6 +182,7 @@ export function Gallery(props: GalleryProps) {
                 photo={photo}
                 index={index()}
                 isSelected={() => props.selectedIds().has(photo.ID)}
+                isFocused={() => props.focusedIds().has(photo.ID)}
                 onToggleSelection={props.onToggleSelection}
                 onPhotoClick={props.onPhotoClick}
                 currentPage={props.currentPage}
