@@ -31,3 +31,6 @@ run = "sudo systemctl status photos.service"
 [tasks.logs]
 description = "Show latest photos service logs"
 run = "journalctl -u photos.service -n 50 --no-pager"
+
+[tools]
+pnpm = "latest"
