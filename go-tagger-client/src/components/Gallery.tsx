@@ -1,6 +1,33 @@
-import { For, Show, createSignal, onCleanup } from "solid-js";
+import { For, Show, createMemo, createSignal, onCleanup } from "solid-js";
 import { PhotoCard } from "./PhotoCard";
 import type { Photo } from "../types";
+
+const COLUMN_COUNT = 4;
+const ESTIMATED_COLUMN_WIDTH = 240;
+const ESTIMATED_CARD_CHROME_HEIGHT = 84;
+
+function estimatePhotoCardHeight(photo: Photo) {
+  if (photo.width > 0 && photo.height > 0) {
+    return (
+      ESTIMATED_CARD_CHROME_HEIGHT +
+      (ESTIMATED_COLUMN_WIDTH * photo.height) / photo.width
+    );
+  }
+
+  return ESTIMATED_CARD_CHROME_HEIGHT + ESTIMATED_COLUMN_WIDTH;
+}
+
+function getShortestColumnIndex(columnHeights: number[]) {
+  let shortestIndex = 0;
+
+  for (let index = 1; index < columnHeights.length; index += 1) {
+    if (columnHeights[index] < columnHeights[shortestIndex]) {
+      shortestIndex = index;
+    }
+  }
+
+  return shortestIndex;
+}
 
 type GalleryProps = {
   photos: Photo[];
@@ -20,6 +47,26 @@ export function Gallery(props: GalleryProps) {
   const [dragEnd, setDragEnd] = createSignal({ x: 0, y: 0 });
   const [dragStartedOnCard, setDragStartedOnCard] = createSignal(false);
   let galleryRef: HTMLDivElement | undefined;
+
+  const photoColumns = createMemo(() => {
+    const columns = Array.from(
+      { length: COLUMN_COUNT },
+      () =>
+        [] as {
+          photo: Photo;
+          index: number;
+        }[],
+    );
+    const columnHeights = Array.from({ length: COLUMN_COUNT }, () => 0);
+
+    props.photos.forEach((photo, index) => {
+      const columnIndex = getShortestColumnIndex(columnHeights);
+      columns[columnIndex].push({ photo, index });
+      columnHeights[columnIndex] += estimatePhotoCardHeight(photo);
+    });
+
+    return columns;
+  });
 
   const handleMouseDown = (e: MouseEvent) => {
     // Check if we started on a photo card or its children
@@ -93,7 +140,7 @@ export function Gallery(props: GalleryProps) {
     const photoElements = galleryRef.querySelectorAll(".gallery__item");
     const selected: number[] = [];
 
-    photoElements.forEach((el, index) => {
+    photoElements.forEach((el) => {
       const rect = el.getBoundingClientRect();
       const galleryRect = galleryRef!.getBoundingClientRect();
       const photoRect = {
@@ -110,9 +157,9 @@ export function Gallery(props: GalleryProps) {
         selectionRect.top < photoRect.bottom &&
         selectionRect.bottom > photoRect.top
       ) {
-        const photo = props.photos[index];
-        if (photo) {
-          selected.push(photo.ID);
+        const photoId = Number((el as HTMLElement).dataset.photoId);
+        if (!Number.isNaN(photoId)) {
+          selected.push(photoId);
         }
       }
     });
@@ -172,22 +219,28 @@ export function Gallery(props: GalleryProps) {
         </div>
         <div
           ref={galleryRef}
-          class="gallery"
+          class="masonry wrapper switcher"
           onMouseDown={handleMouseDown}
           style={{ position: "relative", "user-select": "none" }}
         >
-          <For each={props.photos}>
-            {(photo, index) => (
-              <PhotoCard
-                photo={photo}
-                index={index()}
-                isSelected={() => props.selectedIds().has(photo.ID)}
-                isFocused={() => props.focusedIds().has(photo.ID)}
-                onToggleSelection={props.onToggleSelection}
-                onPhotoClick={props.onPhotoClick}
-                currentPage={props.currentPage}
-                onDelete={props.onDeletePhoto}
-              />
+          <For each={photoColumns()}>
+            {(column) => (
+              <div class="flow">
+                <For each={column}>
+                  {({ photo, index }) => (
+                    <PhotoCard
+                      photo={photo}
+                      index={index}
+                      isSelected={() => props.selectedIds().has(photo.ID)}
+                      isFocused={() => props.focusedIds().has(photo.ID)}
+                      onToggleSelection={props.onToggleSelection}
+                      onPhotoClick={props.onPhotoClick}
+                      currentPage={props.currentPage}
+                      onDelete={props.onDeletePhoto}
+                    />
+                  )}
+                </For>
+              </div>
             )}
           </For>
           <Show when={isDragging() && !dragStartedOnCard()}>

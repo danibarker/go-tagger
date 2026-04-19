@@ -266,10 +266,38 @@ button.ghost:disabled {
   color: var(--color-text);
 }
 
-.gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
+.masonry {
+  --gutter: 0.25em;
+  --flow-space: var(--gutter);
+  --switcher-target-container-width: 28rem;
+}
+
+.masonry img {
+  width: 100%;
+}
+
+.switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gutter, 1em);
+  align-items: var(--switcher-vertical-alignment, flex-start);
+}
+
+.switcher > * {
+  flex-grow: 1;
+  flex-basis: calc(
+    (var(--switcher-target-container-width, 40rem) - 100%) * 999
+  );
+}
+
+.flow > * + * {
+  margin-block-start: var(--flow-space, 1em);
+}
+
+.wrapper {
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
 }
 
 .gallery__item {

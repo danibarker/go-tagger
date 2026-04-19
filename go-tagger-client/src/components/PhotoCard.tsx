@@ -17,6 +17,7 @@ export function PhotoCard(props: PhotoCardProps) {
   return (
     <div
       class={`gallery__item ${props.isSelected() ? "is-selected" : ""} ${props.isFocused() ? "is-focused" : ""}`}
+      data-photo-id={props.photo.ID}
       onClick={() => (window.location.hash = props.photo.file_hash)}
       style={{ position: "relative", cursor: "pointer" }}
     >
