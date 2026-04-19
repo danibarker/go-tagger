@@ -2,11 +2,14 @@ import { For, Show, createSignal, onCleanup } from "solid-js";
 import type { Photo } from "../types";
 import { TrashPhotoCard } from "./TrashPhotoCard";
 
+type DragSelectionMode = "select" | "unselect";
+
 type TrashGalleryProps = {
   photos: Photo[];
   selectedIds: () => Set<number>;
   onPhotoClick: (id: number, index: number, shiftKey: boolean) => void;
   onSelectMultiple: (ids: number[]) => void;
+  onUnselectMultiple: (ids: number[]) => void;
   isLoading: boolean;
   onRestore?: (id: number) => void;
   onPermanentDelete?: (id: number) => void;
@@ -17,7 +20,20 @@ export function TrashGallery(props: TrashGalleryProps) {
   const [dragStart, setDragStart] = createSignal({ x: 0, y: 0 });
   const [dragEnd, setDragEnd] = createSignal({ x: 0, y: 0 });
   const [dragStartedOnCard, setDragStartedOnCard] = createSignal(false);
+  const [dragSelectionMode, setDragSelectionMode] =
+    createSignal<DragSelectionMode>("select");
   let galleryRef: HTMLDivElement | undefined;
+
+  const applyDragSelection = (ids: number[]) => {
+    if (ids.length === 0) return;
+
+    if (dragSelectionMode() === "unselect") {
+      props.onUnselectMultiple(ids);
+      return;
+    }
+
+    props.onSelectMultiple(ids);
+  };
 
   const handleMouseDown = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -33,6 +49,7 @@ export function TrashGallery(props: TrashGalleryProps) {
     }
 
     setDragStartedOnCard(false);
+    setDragSelectionMode(e.altKey ? "unselect" : "select");
     setIsDragging(true);
     const rect = galleryRef!.getBoundingClientRect();
     setDragStart({
@@ -56,20 +73,17 @@ export function TrashGallery(props: TrashGalleryProps) {
     });
 
     const selectedInDrag = getPhotosInRect();
-    if (selectedInDrag.length > 0) {
-      props.onSelectMultiple(selectedInDrag);
-    }
+    applyDragSelection(selectedInDrag);
   };
 
   const handleMouseUp = () => {
     if (isDragging() && !dragStartedOnCard()) {
       const selectedInDrag = getPhotosInRect();
-      if (selectedInDrag.length > 0) {
-        props.onSelectMultiple(selectedInDrag);
-      }
+      applyDragSelection(selectedInDrag);
     }
     setIsDragging(false);
     setDragStartedOnCard(false);
+    setDragSelectionMode("select");
   };
 
   const getPhotosInRect = (): number[] => {
@@ -120,8 +134,14 @@ export function TrashGallery(props: TrashGalleryProps) {
       top: `${Math.min(start.y, end.y)}px`,
       width: `${Math.abs(end.x - start.x)}px`,
       height: `${Math.abs(end.y - start.y)}px`,
-      border: "2px solid var(--color-selection)",
-      background: "var(--color-selection-soft)",
+      border:
+        dragSelectionMode() === "unselect"
+          ? "2px solid var(--color-danger)"
+          : "2px solid var(--color-selection)",
+      background:
+        dragSelectionMode() === "unselect"
+          ? "rgba(220, 38, 38, 0.14)"
+          : "var(--color-selection-soft)",
       "pointer-events": "none" as const,
       "z-index": 100,
     };

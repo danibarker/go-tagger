@@ -353,6 +353,14 @@ export function GalleryPage() {
     });
   };
 
+  const unselectMultiple = (ids: number[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
   const clearSelection = () => setSelectedIds(() => new Set<number>());
 
   const getGalleryColumnCount = () => {
@@ -804,6 +812,7 @@ export function GalleryPage() {
               onToggleSelection={toggleSelection}
               onPhotoClick={handlePhotoClick}
               onSelectMultiple={selectMultiple}
+              onUnselectMultiple={unselectMultiple}
               isLoading={photosLoading()}
               currentPage={currentPage()}
               onDeletePhoto={handleDeletePhoto}

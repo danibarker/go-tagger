@@ -6,6 +6,8 @@ const COLUMN_COUNT = 4;
 const ESTIMATED_COLUMN_WIDTH = 240;
 const ESTIMATED_CARD_CHROME_HEIGHT = 84;
 
+type DragSelectionMode = "select" | "unselect";
+
 function estimatePhotoCardHeight(photo: Photo) {
   if (photo.width > 0 && photo.height > 0) {
     return (
@@ -36,6 +38,7 @@ type GalleryProps = {
   onToggleSelection: (id: number) => void;
   onPhotoClick: (id: number, index: number, shiftKey: boolean) => void;
   onSelectMultiple: (ids: number[]) => void;
+  onUnselectMultiple: (ids: number[]) => void;
   isLoading: boolean;
   currentPage: number;
   onDeletePhoto?: (id: number) => void;
@@ -46,6 +49,8 @@ export function Gallery(props: GalleryProps) {
   const [dragStart, setDragStart] = createSignal({ x: 0, y: 0 });
   const [dragEnd, setDragEnd] = createSignal({ x: 0, y: 0 });
   const [dragStartedOnCard, setDragStartedOnCard] = createSignal(false);
+  const [dragSelectionMode, setDragSelectionMode] =
+    createSignal<DragSelectionMode>("select");
   let galleryRef: HTMLDivElement | undefined;
 
   const photoColumns = createMemo(() => {
@@ -68,6 +73,17 @@ export function Gallery(props: GalleryProps) {
     return columns;
   });
 
+  const applyDragSelection = (ids: number[]) => {
+    if (ids.length === 0) return;
+
+    if (dragSelectionMode() === "unselect") {
+      props.onUnselectMultiple(ids);
+      return;
+    }
+
+    props.onSelectMultiple(ids);
+  };
+
   const handleMouseDown = (e: MouseEvent) => {
     // Check if we started on a photo card or its children
     const target = e.target as HTMLElement;
@@ -84,6 +100,7 @@ export function Gallery(props: GalleryProps) {
     }
 
     setDragStartedOnCard(false);
+    setDragSelectionMode(e.altKey ? "unselect" : "select");
     setIsDragging(true);
     const rect = galleryRef!.getBoundingClientRect();
     setDragStart({
@@ -108,21 +125,17 @@ export function Gallery(props: GalleryProps) {
 
     // Calculate which photos are in the selection rectangle
     const selectedInDrag = getPhotosInRect();
-    // Update selection
-    if (selectedInDrag.length > 0) {
-      props.onSelectMultiple(selectedInDrag);
-    }
+    applyDragSelection(selectedInDrag);
   };
 
   const handleMouseUp = () => {
     if (isDragging() && !dragStartedOnCard()) {
       const selectedInDrag = getPhotosInRect();
-      if (selectedInDrag.length > 0) {
-        props.onSelectMultiple(selectedInDrag);
-      }
+      applyDragSelection(selectedInDrag);
     }
     setIsDragging(false);
     setDragStartedOnCard(false);
+    setDragSelectionMode("select");
   };
 
   const getPhotosInRect = (): number[] => {
@@ -176,8 +189,14 @@ export function Gallery(props: GalleryProps) {
       top: `${Math.min(start.y, end.y)}px`,
       width: `${Math.abs(end.x - start.x)}px`,
       height: `${Math.abs(end.y - start.y)}px`,
-      border: "2px solid var(--color-selection)",
-      background: "var(--color-selection-soft)",
+      border:
+        dragSelectionMode() === "unselect"
+          ? "2px solid var(--color-danger)"
+          : "2px solid var(--color-selection)",
+      background:
+        dragSelectionMode() === "unselect"
+          ? "rgba(220, 38, 38, 0.14)"
+          : "var(--color-selection-soft)",
       "pointer-events": "none" as const,
       "z-index": 100,
     };

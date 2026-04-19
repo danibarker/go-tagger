@@ -267,7 +267,7 @@ button.ghost:disabled {
 }
 
 .masonry {
-  --gutter: 0.25em;
+  --gutter: 0.5em;
   --flow-space: var(--gutter);
   --switcher-target-container-width: 28rem;
 }

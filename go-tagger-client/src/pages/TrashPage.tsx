@@ -101,6 +101,14 @@ export function TrashPage() {
     });
   };
 
+  const unselectMultiple = (ids: number[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
   const selectAllOnPage = () => {
     const photoIds = photos().map((p) => p.ID);
     setSelectedIds(() => new Set(photoIds));
@@ -262,6 +270,7 @@ export function TrashPage() {
             selectedIds={selectedIds}
             onPhotoClick={handlePhotoClick}
             onSelectMultiple={selectMultiple}
+            onUnselectMultiple={unselectMultiple}
             isLoading={photosLoading()}
             onRestore={handleRestorePhoto}
             onPermanentDelete={handlePermanentDeletePhoto}
