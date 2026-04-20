@@ -20,6 +20,14 @@ type photoIDsInput struct {
 	PhotoIDs []uint `json:"photo_ids" binding:"required"`
 }
 
+type permanentDeleteResult struct {
+	PhotosDeleted   int      `json:"photos_deleted"`
+	FilesDeleted    int      `json:"files_deleted"`
+	ThumbsDeleted   int      `json:"thumbs_deleted"`
+	FileErrors      []string `json:"file_errors"`
+	FileErrorsCount int      `json:"file_errors_count"`
+}
+
 func splitCSVTrimmed(s string) []string {
 	if s == "" {
 		return nil
@@ -330,6 +338,73 @@ func isPathUnderRoot(path, root string) bool {
 	return true
 }
 
+func permanentlyDeletePhotoIDs(photoIDs []uint) (permanentDeleteResult, error) {
+	result := permanentDeleteResult{
+		FileErrors: make([]string, 0),
+	}
+
+	if len(photoIDs) == 0 {
+		return result, nil
+	}
+
+	// Fetch paths + hashes before deleting DB rows.
+	var photos []models.Photo
+	if err := db.DB.Select("id", "file_path", "file_hash").Where("id IN ?", photoIDs).Find(&photos).Error; err != nil {
+		return result, fmt.Errorf("Database error while reading photos to delete.")
+	}
+
+	result.PhotosDeleted = len(photos)
+
+	for _, p := range photos {
+		resolved := services.ResolvePhotoPath(p.FilePath)
+		if resolved != "" && isPathUnderRoot(resolved, services.PhotoRoot) {
+			if err := os.Remove(resolved); err == nil {
+				result.FilesDeleted++
+			} else if !os.IsNotExist(err) {
+				result.FileErrors = append(result.FileErrors, fmt.Sprintf("file remove failed id=%d path=%s err=%v", p.ID, resolved, err))
+			}
+		} else if resolved != "" {
+			result.FileErrors = append(result.FileErrors, fmt.Sprintf("skipped file delete (outside PHOTO_ROOT) id=%d path=%s", p.ID, resolved))
+		}
+
+		if services.ThumbnailRoot != "" && p.FileHash != "" {
+			thumbPath := filepath.Join(services.ThumbnailRoot, p.FileHash+".jpg")
+			if !isPathUnderRoot(thumbPath, services.ThumbnailRoot) {
+				result.FileErrors = append(result.FileErrors, fmt.Sprintf("skipped thumb delete (outside THUMBNAIL_ROOT) id=%d path=%s", p.ID, thumbPath))
+				continue
+			}
+			if err := os.Remove(thumbPath); err == nil {
+				result.ThumbsDeleted++
+			} else if !os.IsNotExist(err) {
+				result.FileErrors = append(result.FileErrors, fmt.Sprintf("thumb remove failed id=%d path=%s err=%v", p.ID, thumbPath, err))
+			}
+		}
+	}
+
+	result.FileErrorsCount = len(result.FileErrors)
+	if result.FileErrorsCount > 0 {
+		return result, fmt.Errorf("Failed to delete one or more files; database rows were not removed.")
+	}
+
+	if err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM photo_tags WHERE photo_id IN ?", photoIDs).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM photo_people WHERE photo_id IN ?", photoIDs).Error; err != nil {
+			return err
+		}
+		// Hard delete rows (bypass gorm.Model DeletedAt soft-delete).
+		if err := tx.Unscoped().Where("id IN ?", photoIDs).Delete(&models.Photo{}).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return result, fmt.Errorf("Database error while permanently deleting photos.")
+	}
+
+	return result, nil
+}
+
 func HandlePermanentDeletePhotos(c *gin.Context) {
 	var input photoIDsInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -337,78 +412,56 @@ func HandlePermanentDeletePhotos(c *gin.Context) {
 		return
 	}
 
-	// Fetch paths + hashes before deleting DB rows.
-	var photos []models.Photo
-	if err := db.DB.Select("id", "file_path", "file_hash").Where("id IN ?", input.PhotoIDs).Find(&photos).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while reading photos to delete."})
-		return
-	}
-
-	filesDeleted := 0
-	thumbsDeleted := 0
-	var fileErrors []string
-
-	for _, p := range photos {
-		resolved := services.ResolvePhotoPath(p.FilePath)
-		if resolved != "" && isPathUnderRoot(resolved, services.PhotoRoot) {
-			if err := os.Remove(resolved); err == nil {
-				filesDeleted++
-			} else if !os.IsNotExist(err) {
-				fileErrors = append(fileErrors, fmt.Sprintf("file remove failed id=%d path=%s err=%v", p.ID, resolved, err))
-			}
-		} else if resolved != "" {
-			fileErrors = append(fileErrors, fmt.Sprintf("skipped file delete (outside PHOTO_ROOT) id=%d path=%s", p.ID, resolved))
-		}
-
-		if services.ThumbnailRoot != "" && p.FileHash != "" {
-			thumbPath := filepath.Join(services.ThumbnailRoot, p.FileHash+".jpg")
-			if !isPathUnderRoot(thumbPath, services.ThumbnailRoot) {
-				fileErrors = append(fileErrors, fmt.Sprintf("skipped thumb delete (outside THUMBNAIL_ROOT) id=%d path=%s", p.ID, thumbPath))
-				continue
-			}
-			if err := os.Remove(thumbPath); err == nil {
-				thumbsDeleted++
-			} else if !os.IsNotExist(err) {
-				fileErrors = append(fileErrors, fmt.Sprintf("thumb remove failed id=%d path=%s err=%v", p.ID, thumbPath, err))
-			}
-		}
-	}
-
-	if len(fileErrors) > 0 {
+	result, err := permanentlyDeletePhotoIDs(input.PhotoIDs)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":             "Failed to delete one or more files; database rows were not removed.",
-			"files_deleted":     filesDeleted,
-			"thumbs_deleted":    thumbsDeleted,
-			"file_errors":       fileErrors,
-			"file_errors_count": len(fileErrors),
+			"error":             err.Error(),
+			"photos_deleted":    result.PhotosDeleted,
+			"files_deleted":     result.FilesDeleted,
+			"thumbs_deleted":    result.ThumbsDeleted,
+			"file_errors":       result.FileErrors,
+			"file_errors_count": result.FileErrorsCount,
 		})
-		return
-	}
-
-	if err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec("DELETE FROM photo_tags WHERE photo_id IN ?", input.PhotoIDs).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec("DELETE FROM photo_people WHERE photo_id IN ?", input.PhotoIDs).Error; err != nil {
-			return err
-		}
-		// Hard delete rows (bypass gorm.Model DeletedAt soft-delete).
-		if err := tx.Unscoped().Where("id IN ?", input.PhotoIDs).Delete(&models.Photo{}).Error; err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while permanently deleting photos."})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":           "Photos permanently deleted.",
-		"photos_deleted":    len(input.PhotoIDs),
-		"files_deleted":     filesDeleted,
-		"thumbs_deleted":    thumbsDeleted,
-		"file_errors":       fileErrors,
-		"file_errors_count": len(fileErrors),
+		"photos_deleted":    result.PhotosDeleted,
+		"files_deleted":     result.FilesDeleted,
+		"thumbs_deleted":    result.ThumbsDeleted,
+		"file_errors":       result.FileErrors,
+		"file_errors_count": result.FileErrorsCount,
+	})
+}
+
+func HandleEmptyTrash(c *gin.Context) {
+	var photoIDs []uint
+	if err := db.DB.Model(&models.Photo{}).Where("marked_for_deletion = ?", true).Pluck("id", &photoIDs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while reading trash contents."})
+		return
+	}
+
+	result, err := permanentlyDeletePhotoIDs(photoIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":             err.Error(),
+			"photos_deleted":    result.PhotosDeleted,
+			"files_deleted":     result.FilesDeleted,
+			"thumbs_deleted":    result.ThumbsDeleted,
+			"file_errors":       result.FileErrors,
+			"file_errors_count": result.FileErrorsCount,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":           "Trash emptied.",
+		"photos_deleted":    result.PhotosDeleted,
+		"files_deleted":     result.FilesDeleted,
+		"thumbs_deleted":    result.ThumbsDeleted,
+		"file_errors":       result.FileErrors,
+		"file_errors_count": result.FileErrorsCount,
 	})
 }
 

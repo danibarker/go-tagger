@@ -248,6 +248,17 @@ export const permanentlyDeletePhotos = async (
   }
 };
 
+export const emptyTrash = async (): Promise<void> => {
+  const res = await fetch(`${API_BASE}/api/photos/trash/empty`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to empty trash");
+  }
+};
+
 export const getPerfMonitoring = async (): Promise<{ enabled: boolean }> => {
   const res = await fetch(`${API_BASE}/api/perf-monitoring`);
   if (!res.ok) {

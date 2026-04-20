@@ -1,6 +1,7 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import type { Photo } from "../types";
 import {
+  emptyTrash,
   fetchTrashPhotos,
   permanentlyDeletePhotos,
   restorePhotos,
@@ -9,9 +10,12 @@ import { PageControls } from "../components/PageControls";
 import { TopNav } from "../components/TopNav";
 import { TrashGallery } from "../components/TrashGallery";
 import { TrashGalleryControls } from "../components/TrashGalleryControls";
+import { ConfirmModal } from "../components/ConfirmModal";
+import { useToast } from "../components/ToastProvider";
 import { PhotoViewerModal } from "./PhotoViewerModal";
 
 export function TrashPage() {
+  const { pushToast } = useToast();
   const [viewerHash, setViewerHash] = createSignal<string | null>(null);
   const [isVideo, setIsVideo] = createSignal(false);
   const [mediaLoading, setMediaLoading] = createSignal(false);
@@ -55,12 +59,15 @@ export function TrashPage() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   });
 
-  const limit = 50;
+  const [limit, setLimit] = createSignal(50);
   const [photos, setPhotos] = createSignal<Photo[]>([]);
   const [photosLoading, setPhotosLoading] = createSignal(false);
   const [totalPages, setTotalPages] = createSignal(1);
+  const [totalItems, setTotalItems] = createSignal(0);
   const [currentPage, setCurrentPage] = createSignal(1);
   const [refreshPhotos, setRefreshPhotos] = createSignal(false);
+  const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = createSignal(false);
+  const [emptyTrashInProgress, setEmptyTrashInProgress] = createSignal(false);
 
   const [selectedIds, setSelectedIds] = createSignal<Set<number>>(new Set());
   const [lastClickedIndex, setLastClickedIndex] = createSignal<number | null>(
@@ -148,8 +155,9 @@ export function TrashPage() {
   const loadTrash = async () => {
     setPhotosLoading(true);
     try {
-      const res = await fetchTrashPhotos(currentPage(), limit);
-      const pages = Math.max(1, Math.ceil(res.total / limit));
+      const res = await fetchTrashPhotos(currentPage(), limit());
+      setTotalItems(res.total ?? 0);
+      const pages = Math.max(1, Math.ceil(res.total / limit()));
       setTotalPages(pages);
 
       // If the page became invalid (e.g. after deleting the last item on the
@@ -174,6 +182,8 @@ export function TrashPage() {
     } catch {
       setPhotos([]);
       setTotalPages(1);
+      setTotalItems(0);
+      pushToast({ kind: "error", message: "Failed to load trash." });
     } finally {
       setPhotosLoading(false);
     }
@@ -181,6 +191,7 @@ export function TrashPage() {
 
   createEffect(() => {
     currentPage();
+    limit();
     refreshPhotos();
     loadTrash();
   });
@@ -194,8 +205,9 @@ export function TrashPage() {
         return next;
       });
       setRefreshPhotos((v) => !v);
+      pushToast({ kind: "success", message: "Photo restored." });
     } catch {
-      // optionally log
+      pushToast({ kind: "error", message: "Failed to restore photo." });
     }
   };
 
@@ -208,8 +220,12 @@ export function TrashPage() {
         return next;
       });
       setRefreshPhotos((v) => !v);
+      pushToast({ kind: "success", message: "Photo permanently deleted." });
     } catch {
-      // optionally log
+      pushToast({
+        kind: "error",
+        message: "Failed to permanently delete photo.",
+      });
     }
   };
 
@@ -220,8 +236,15 @@ export function TrashPage() {
       await restorePhotos(ids);
       clearSelection();
       setRefreshPhotos((v) => !v);
+      pushToast({
+        kind: "success",
+        message: `Restored ${ids.length} photo${ids.length === 1 ? "" : "s"}.`,
+      });
     } catch {
-      // optionally log
+      pushToast({
+        kind: "error",
+        message: "Failed to restore selected photos.",
+      });
     }
   };
 
@@ -232,13 +255,58 @@ export function TrashPage() {
       await permanentlyDeletePhotos(ids);
       clearSelection();
       setRefreshPhotos((v) => !v);
+      pushToast({
+        kind: "success",
+        message: `Deleted ${ids.length} selected photo${ids.length === 1 ? "" : "s"}.`,
+      });
     } catch {
-      // optionally log
+      pushToast({
+        kind: "error",
+        message: "Failed to delete selected photos.",
+      });
+    }
+  };
+
+  const handleLimitChange = (nextLimit: number) => {
+    setLimit(nextLimit);
+    setCurrentPage(1);
+  };
+
+  const handleEmptyTrash = async () => {
+    setEmptyTrashInProgress(true);
+    try {
+      await emptyTrash();
+      clearSelection();
+      setPhotos([]);
+      setCurrentPage(1);
+      setTotalItems(0);
+      setTotalPages(1);
+      setShowEmptyTrashConfirm(false);
+      pushToast({ kind: "success", message: "Trash emptied." });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to empty trash.";
+      pushToast({ kind: "error", message });
+    } finally {
+      setEmptyTrashInProgress(false);
     }
   };
 
   return (
     <main class="app-shell">
+      <ConfirmModal
+        open={showEmptyTrashConfirm()}
+        title="Empty trash permanently?"
+        message="This will permanently delete all trashed photos and their thumbnails. This cannot be undone."
+        confirmLabel={emptyTrashInProgress() ? "Emptying…" : "Empty Trash"}
+        cancelLabel="Cancel"
+        onClose={() => {
+          if (!emptyTrashInProgress()) setShowEmptyTrashConfirm(false);
+        }}
+        onConfirm={() => {
+          if (!emptyTrashInProgress()) void handleEmptyTrash();
+        }}
+      />
       <TopNav />
 
       <header class="app-shell__header">
@@ -256,11 +324,16 @@ export function TrashPage() {
           photosLoading={photosLoading}
         />
 
-        <div style={{ position: "relative" }}>
+        <div>
           <TrashGalleryControls
             photos={photos()}
+            totalItems={totalItems()}
+            limit={limit()}
             selectedIds={selectedIds}
+            onLimitChange={handleLimitChange}
             onToggleSelectAll={toggleSelectAll}
+            onEmptyTrash={() => setShowEmptyTrashConfirm(true)}
+            emptyTrashInProgress={emptyTrashInProgress()}
             onBatchRestore={handleBatchRestore}
             onBatchPermanentDelete={handleBatchPermanentDelete}
           />

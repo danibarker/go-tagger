@@ -81,6 +81,7 @@ func main() {
 		api.GET("/photos", handlers.HandleGetPhotos)
 		api.GET("/photos/trash", handlers.HandleGetTrashPhotos)
 		api.POST("/photos/trash/restore", handlers.HandleRestorePhotos)
+		api.DELETE("/photos/trash/empty", handlers.HandleEmptyTrash)
 		api.DELETE("/photos/trash", handlers.HandlePermanentDeletePhotos)
 		api.GET("/photos/:hash", handlers.HandleGetPhotoByHash)
 		api.DELETE("/photos", handlers.HandleDeletePhotos)
