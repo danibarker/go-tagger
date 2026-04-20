@@ -34,6 +34,7 @@ function getShortestColumnIndex(columnHeights: number[]) {
 type GalleryProps = {
   photos: Photo[];
   selectedIds: () => Set<number>;
+  pendingDeletedIds: () => Set<number>;
   focusedIds: () => Set<number>;
   onToggleSelection: (id: number) => void;
   onPhotoClick: (id: number, index: number, shiftKey: boolean) => void;
@@ -170,6 +171,10 @@ export function Gallery(props: GalleryProps) {
         selectionRect.top < photoRect.bottom &&
         selectionRect.bottom > photoRect.top
       ) {
+        if ((el as HTMLElement).classList.contains("is-deleting")) {
+          return;
+        }
+
         const photoId = Number((el as HTMLElement).dataset.photoId);
         if (!Number.isNaN(photoId)) {
           selected.push(photoId);
@@ -251,6 +256,7 @@ export function Gallery(props: GalleryProps) {
                       photo={photo}
                       index={index}
                       isSelected={() => props.selectedIds().has(photo.ID)}
+                      isDeleting={() => props.pendingDeletedIds().has(photo.ID)}
                       isFocused={() => props.focusedIds().has(photo.ID)}
                       onToggleSelection={props.onToggleSelection}
                       onPhotoClick={props.onPhotoClick}

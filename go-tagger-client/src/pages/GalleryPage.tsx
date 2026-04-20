@@ -183,11 +183,10 @@ export function GalleryPage() {
 
   // Single photo delete handler
   const handleDeletePhoto = async (id: number) => {
-    const prevPhotos = photos();
     const prevSelected = selectedIds();
 
-    // Optimistically update UI first (no full re-fetch needed to remove from DOM)
-    setPhotos((prev) => prev.filter((p) => p.ID !== id));
+    // Keep the card slot in-place while deleting to avoid masonry reflow.
+    markPendingDeleteIds([id]);
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
@@ -199,8 +198,7 @@ export function GalleryPage() {
       // Background refresh to backfill the page and keep pagination correct.
       requestRefreshPhotos();
     } catch (error) {
-      // Roll back optimistic update on failure.
-      setPhotos(() => prevPhotos);
+      clearPendingDeleteIds([id]);
       setSelectedIds(() => prevSelected);
       const msg =
         error instanceof Error ? error.message : "Failed to delete photo";
@@ -212,12 +210,10 @@ export function GalleryPage() {
   const handleBatchDelete = async () => {
     const ids = Array.from(selectedIds());
     if (!ids.length) return;
-    const prevPhotos = photos();
     const prevSelected = selectedIds();
 
-    // Optimistically remove from the current page.
-    const idSet = new Set(ids);
-    setPhotos((prev) => prev.filter((p) => !idSet.has(p.ID)));
+    // Keep card slots in-place while deleting to avoid repeated reflow.
+    markPendingDeleteIds(ids);
     clearSelection();
 
     try {
@@ -225,7 +221,7 @@ export function GalleryPage() {
       // Background refresh to backfill and recalc total pages.
       requestRefreshPhotos();
     } catch (error) {
-      setPhotos(() => prevPhotos);
+      clearPendingDeleteIds(ids);
       setSelectedIds(() => prevSelected);
       const msg =
         error instanceof Error
@@ -305,6 +301,25 @@ export function GalleryPage() {
   const [photosLoading, setPhotosLoading] = createSignal(false);
   const [totalPages, setTotalPages] = createSignal(1);
   const [currentPage, setCurrentPage] = createSignal(initialPage);
+  const [pendingDeletedIds, setPendingDeletedIds] = createSignal<Set<number>>(
+    new Set(),
+  );
+
+  const markPendingDeleteIds = (ids: number[]) => {
+    setPendingDeletedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const clearPendingDeleteIds = (ids: number[]) => {
+    setPendingDeletedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
 
   const toggleSelection = (id: number) => {
     setSelectedIds((prev) => {
@@ -535,6 +550,15 @@ export function GalleryPage() {
 
   createEffect(() => {
     const idsOnPage = new Set(photos().map((p) => p.ID));
+
+    setPendingDeletedIds((prev) => {
+      const next = new Set<number>();
+      prev.forEach((id) => {
+        if (idsOnPage.has(id)) next.add(id);
+      });
+      return next;
+    });
+
     setFocusedIds((prev) => {
       const next = new Set<number>();
       prev.forEach((id) => {
@@ -808,6 +832,7 @@ export function GalleryPage() {
             <Gallery
               photos={photos()}
               selectedIds={selectedIds}
+              pendingDeletedIds={pendingDeletedIds}
               focusedIds={focusedIds}
               onToggleSelection={toggleSelection}
               onPhotoClick={handlePhotoClick}
