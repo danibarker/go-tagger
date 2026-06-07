@@ -248,14 +248,41 @@ export const permanentlyDeletePhotos = async (
   }
 };
 
+const fetchAllTrashPhotoIds = async (): Promise<number[]> => {
+  const photoIds: number[] = [];
+  let page = 1;
+  let total = Number.POSITIVE_INFINITY;
+
+  while (photoIds.length < total) {
+    const response = await fetchTrashPhotos(page, 500);
+    total = response.total ?? 0;
+    photoIds.push(...response.data.map((photo) => photo.ID));
+
+    if (response.data.length === 0) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return photoIds;
+};
+
 export const emptyTrash = async (): Promise<void> => {
   const res = await fetch(`${API_BASE}/api/photos/trash/empty`, {
     method: "DELETE",
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? "Failed to empty trash");
+    if (res.status !== 404) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? "Failed to empty trash");
+    }
+
+    const photoIds = await fetchAllTrashPhotoIds();
+    if (photoIds.length === 0) return;
+
+    await permanentlyDeletePhotos(photoIds);
   }
 };
 
