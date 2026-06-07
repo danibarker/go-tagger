@@ -1,35 +1,9 @@
 import { For, Show, createMemo, createSignal, onCleanup } from "solid-js";
 import { PhotoCard } from "./PhotoCard";
 import type { Photo } from "../types";
-
-const COLUMN_COUNT = 4;
-const ESTIMATED_COLUMN_WIDTH = 240;
-const ESTIMATED_CARD_CHROME_HEIGHT = 84;
+import { buildPhotoColumns } from "./galleryLayout";
 
 type DragSelectionMode = "select" | "unselect";
-
-function estimatePhotoCardHeight(photo: Photo) {
-  if (photo.width > 0 && photo.height > 0) {
-    return (
-      ESTIMATED_CARD_CHROME_HEIGHT +
-      (ESTIMATED_COLUMN_WIDTH * photo.height) / photo.width
-    );
-  }
-
-  return ESTIMATED_CARD_CHROME_HEIGHT + ESTIMATED_COLUMN_WIDTH;
-}
-
-function getShortestColumnIndex(columnHeights: number[]) {
-  let shortestIndex = 0;
-
-  for (let index = 1; index < columnHeights.length; index += 1) {
-    if (columnHeights[index] < columnHeights[shortestIndex]) {
-      shortestIndex = index;
-    }
-  }
-
-  return shortestIndex;
-}
 
 type GalleryProps = {
   photos: Photo[];
@@ -55,23 +29,7 @@ export function Gallery(props: GalleryProps) {
   let galleryRef: HTMLDivElement | undefined;
 
   const photoColumns = createMemo(() => {
-    const columns = Array.from(
-      { length: COLUMN_COUNT },
-      () =>
-        [] as {
-          photo: Photo;
-          index: number;
-        }[],
-    );
-    const columnHeights = Array.from({ length: COLUMN_COUNT }, () => 0);
-
-    props.photos.forEach((photo, index) => {
-      const columnIndex = getShortestColumnIndex(columnHeights);
-      columns[columnIndex].push({ photo, index });
-      columnHeights[columnIndex] += estimatePhotoCardHeight(photo);
-    });
-
-    return columns;
+    return buildPhotoColumns(props.photos);
   });
 
   const applyDragSelection = (ids: number[]) => {

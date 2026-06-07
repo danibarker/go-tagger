@@ -1,6 +1,7 @@
-import { For, Show, createSignal, onCleanup } from "solid-js";
+import { For, Show, createMemo, createSignal, onCleanup } from "solid-js";
 import type { Photo } from "../types";
 import { TrashPhotoCard } from "./TrashPhotoCard";
+import { buildPhotoColumns } from "./galleryLayout";
 
 type DragSelectionMode = "select" | "unselect";
 
@@ -23,6 +24,10 @@ export function TrashGallery(props: TrashGalleryProps) {
   const [dragSelectionMode, setDragSelectionMode] =
     createSignal<DragSelectionMode>("select");
   let galleryRef: HTMLDivElement | undefined;
+
+  const photoColumns = createMemo(() => {
+    return buildPhotoColumns(props.photos);
+  });
 
   const applyDragSelection = (ids: number[]) => {
     if (ids.length === 0) return;
@@ -161,20 +166,26 @@ export function TrashGallery(props: TrashGalleryProps) {
       <Show when={props.photos.length > 0} fallback={<p>Trash is empty.</p>}>
         <div
           ref={galleryRef}
-          class="gallery"
+          class="masonry wrapper switcher"
           onMouseDown={handleMouseDown}
           style={{ position: "relative", "user-select": "none" }}
         >
-          <For each={props.photos}>
-            {(photo, index) => (
-              <TrashPhotoCard
-                photo={photo}
-                index={index()}
-                isSelected={() => props.selectedIds().has(photo.ID)}
-                onPhotoClick={props.onPhotoClick}
-                onRestore={props.onRestore}
-                onPermanentDelete={props.onPermanentDelete}
-              />
+          <For each={photoColumns()}>
+            {(column) => (
+              <div class="flow">
+                <For each={column}>
+                  {({ photo, index }) => (
+                    <TrashPhotoCard
+                      photo={photo}
+                      index={index}
+                      isSelected={() => props.selectedIds().has(photo.ID)}
+                      onPhotoClick={props.onPhotoClick}
+                      onRestore={props.onRestore}
+                      onPermanentDelete={props.onPermanentDelete}
+                    />
+                  )}
+                </For>
+              </div>
             )}
           </For>
           <Show when={isDragging() && !dragStartedOnCard()}>
