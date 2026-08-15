@@ -56,6 +56,10 @@ func BulkWriteTags(photos []models.Photo) error {
 		metadataList = append(metadataList, fm)
 	}
 
+	// XMP:Subject is a list-type tag, so exiftool appends to any existing values
+	// instead of replacing them. Clear it first so re-tagging doesn't duplicate entries.
+	clearListTag(metadataList, "XMP:Subject")
+
 	// 2. Write Metadata in one go (very fast operation thanks to stay_open)
 	Et.WriteMetadata(metadataList)
 
@@ -67,6 +71,29 @@ func BulkWriteTags(photos []models.Photo) error {
 		}
 	}
 	return nil
+}
+
+// clearListTag clears a list-type tag on each file before new values are written to it,
+// since exiftool appends to existing list values on "-tag=value" writes instead of overwriting them.
+func clearListTag(metadataList []exiftool.FileMetadata, tagKeys ...string) {
+	if len(metadataList) == 0 {
+		return
+	}
+	var clearList []exiftool.FileMetadata
+	for _, fm := range metadataList {
+		clearFm := exiftool.EmptyFileMetadata()
+		clearFm.File = fm.File
+		for _, key := range tagKeys {
+			clearFm.Clear(key)
+		}
+		clearList = append(clearList, clearFm)
+	}
+	Et.WriteMetadata(clearList)
+	for _, fileInfo := range clearList {
+		if fileInfo.Err != nil {
+			log.Printf("Error clearing metadata on %s: %v", fileInfo.File, fileInfo.Err)
+		}
+	}
 }
 
 // BulkWritePeople handles writing people metadata to the physical files.
@@ -91,6 +118,8 @@ func BulkWritePeople(photos []models.Photo) error {
 		fm.File = resolvedPath
 		metadataList = append(metadataList, fm)
 	}
+
+	clearListTag(metadataList, "XMP:PersonInImage")
 
 	Et.WriteMetadata(metadataList)
 
@@ -129,6 +158,8 @@ func BulkWriteAllMetadata(photos []models.Photo) error {
 		fm.File = resolvedPath
 		metadataList = append(metadataList, fm)
 	}
+
+	clearListTag(metadataList, "XMP:Subject", "XMP:PersonInImage")
 
 	Et.WriteMetadata(metadataList)
 
